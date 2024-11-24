@@ -1,5 +1,6 @@
 package Interface;
 
+
 public interface ScannerConstants
 {
     int[] SCANNER_TABLE_INDEXES = 
@@ -1223,10 +1224,10 @@ public interface ScannerConstants
 
     String[] SCANNER_ERROR =
     {
-        "Simbolo inválido",
+        "Caractere não esperado",
         "",
         "",
-        "constante_string inválida",
+        "Erro identificando string",
         "Erro identificando \"&&\"",
         "",
         "",
@@ -1249,21 +1250,21 @@ public interface ScannerConstants
         "Erro identificando \"||\"",
         "",
         "",
-        "constante_string inválida",
+        "Erro identificando string",
         "",
-        "constante_real inválida",
+        "Erro identificando cte_real",
         "",
-        "comentário de bloco inválido ou não finalizado",
-        "identificador inválido",
-        "",
-        "",
-        "comentário de bloco inválido ou não finalizado",
+        "Erro identificando <ignorar>",
+        "Erro identificando id",
         "",
         "",
-        "constante_real inválida",
-        "comentário de bloco inválido ou não finalizado",
+        "Erro identificando <ignorar>",
         "",
-        "comentário de bloco inválido ou não finalizado",
+        "",
+        "Erro identificando cte_real",
+        "Erro identificando <ignorar>",
+        "",
+        "Erro identificando <ignorar>",
         ""
     };
 

@@ -99,36 +99,63 @@ public class Semantico implements Constants {
     }
 
     private void acao101() throws SemanticError {
+        // Finalizar código objeto
         codigoObjeto.add("ret");
         codigoObjeto.add("} }");
+
+        // Verificar se há variáveis não utilizadas
         for (String id : tabelaSimbolos.keySet()) {
             Simbolo simbolo = tabelaSimbolos.get(id);
-            if (!simbolo.isUsado()) {
-                throw new SemanticError("Variável '" + id + "' declarada, mas não utilizada.", simbolo.getLinha());
-            }
+//            if (!simbolo.isUsado()) {
+//                throw new SemanticError("Variável '" + id + "' declarada, mas não utilizada. ", simbolo.getLinha());
+//            }
         }
     }
 
-    private void acao102(Token token) throws SemanticError {
-        String tipo = token.getLexeme();
-        String tipoIL = switch (tipo) {
-            case "int" ->
-                "int64";
-            case "float" ->
-                "float64";
-            case "str" ->
-                "string";
-            default ->
-                throw new SemanticError("Tipo não suportado: " + tipo, token.getPosition());
-        };
+    private void acaoAtribuicao(String id) throws SemanticError {
+        // Verificar se a variável foi declarada
+        if (!tabelaSimbolos.containsKey(id)) {
+            throw new SemanticError("Variável '" + id + "' não declarada.", 0); // Ajuste a posição conforme necessário
+        }
 
+        // Marcar a variável como usada
+        tabelaSimbolos.get(id).setUsado(true);
+
+        // Gerar código objeto para armazenar o valor na variável
+        codigoObjeto.add("stloc " + id);
+    }
+
+    private void acao102(Token token) throws SemanticError {
         for (String id : listaId) {
+            // Verificar se o identificador já está declarado na tabela de símbolos
             if (tabelaSimbolos.containsKey(id)) {
-                throw new SemanticError("Variável '" + id + "' já declarada.", token.getPosition());
+                throw new SemanticError("Identificador '" + id + "' já declarado.", token.getPosition());
             }
-            tabelaSimbolos.put(id, new Simbolo(id, tipo, false, token.getPosition()));
+
+            // Determinar o tipo com base no prefixo do identificador
+            String tipoIL = switch (id.substring(0, 2)) {
+                case "i_" ->
+                    "int64";
+                case "f_" ->
+                    "float64";
+                case "s_" ->
+                    "string";
+                case "b_" ->
+                    "bool";
+                default ->
+                    throw new SemanticError(
+                            "Identificador '" + id + "' deve começar com i_, f_, s_ ou b_", token.getPosition());
+            };
+
+            // Inserir na tabela de símbolos
+            tabelaSimbolos.put(id, new Simbolo(id, tipoIL, false, token.getPosition()));
+
+            // Gerar o código IL para declarar o identificador
             codigoObjeto.add(".locals (" + tipoIL + " " + id + ")");
         }
+
+        // Limpar a lista de identificadores após o processamento
+        listaId.clear();
     }
 
     private void acao103() {
@@ -154,50 +181,88 @@ public class Semantico implements Constants {
 
         listaId.add(id);
     }
+//modifica read
 
-// Modificação da ação105 (read)
     private void acao105(Token token) throws SemanticError {
-        String id = token.getLexeme();
+        String lexeme = token.getLexeme();
 
-        if (!tabelaSimbolos.containsKey(id)) {
-            throw new SemanticError("Variável '" + id + "' não declarada.", token.getPosition());
+        // Verificar se é uma constante string ou identificador
+        if (lexeme.startsWith("\"") && lexeme.endsWith("\"")) {
+            // Constante string: Gerar código para exibição
+            codigoObjeto.add("ldstr " + lexeme); // Instrução IL para carregar uma string
+            codigoObjeto.add("call void [mscorlib]System.Console::Write(string)");
+        } else {
+            // É um identificador, verificar se está declarado
+            if (!tabelaSimbolos.containsKey(lexeme)) {
+                throw new SemanticError("Identificador '" + lexeme + "' não declarado.", token.getPosition());
+            }
+
+            // Gerar código para leitura com base no tipo do identificador
+            String tipoIL = switch (lexeme.substring(0, 2)) {
+                case "i_" ->
+                    "call int64 [mscorlib]System.Int64::Parse(string)";
+                case "f_" ->
+                    "call float64 [mscorlib]System.Double::Parse(string)";
+                case "s_" ->
+                    ""; // Strings não precisam de conversão
+                case "b_" ->
+                    "call bool [mscorlib]System.Boolean::Parse(string)";
+                default ->
+                    throw new SemanticError("Tipo não suportado para leitura: " + lexeme, token.getPosition());
+            };
+
+            // Sempre chamar ReadLine() primeiro
+            codigoObjeto.add("call string [mscorlib]System.Console::ReadLine()");
+
+            // Adicionar conversão se necessário
+            if (!tipoIL.isEmpty()) {
+                codigoObjeto.add(tipoIL);
+            }
+
+            // Armazenar valor lido no identificador
+            codigoObjeto.add("stloc " + lexeme);
+
+            // Marcar o identificador como usado
+            tabelaSimbolos.get(lexeme).setUsado(true);
         }
-
-        // Gerar código apropriado baseado no tipo
-        codigoObjeto.add("call string [mscorlib]System.Console::ReadLine()");
-
-        if (id.startsWith("i_")) {
-            codigoObjeto.add("call int64 [mscorlib]System.Int64::Parse(string)");
-        } else if (id.startsWith("f_")) {
-            codigoObjeto.add("call float64 [mscorlib]System.Double::Parse(string)");
-        } else if (id.startsWith("b_")) {
-            codigoObjeto.add("call bool [mscorlib]System.Boolean::Parse(string)");
-        }
-
-        codigoObjeto.add("stloc " + id);
-        tabelaSimbolos.get(id).setUsado(true);
     }
 
-// Modificação da ação106 (write)
+    //ação write
     private void acao106(Token token) throws SemanticError {
-        String id = token.getLexeme();
+        String lexeme = token.getLexeme();
 
-        if (!tabelaSimbolos.containsKey(id)) {
-            throw new SemanticError("Variável '" + id + "' não declarada.", token.getPosition());
-        }
-
-        codigoObjeto.add("ldloc " + id);
-
-        // Se for int64, converter para float64 antes de escrever
-        if (id.startsWith("i_")) {
-            codigoObjeto.add("conv.r8");
-            codigoObjeto.add("call void [mscorlib]System.Console::Write(float64)");
-        } else if (id.startsWith("f_")) {
-            codigoObjeto.add("call void [mscorlib]System.Console::Write(float64)");
-        } else if (id.startsWith("s_")) {
+        // Verificar se o lexema é uma constante string
+        if (lexeme.startsWith("\"") && lexeme.endsWith("\"")) {
+            // Gerar código para carregar e escrever a constante string
+            codigoObjeto.add("ldstr " + lexeme); // Instrução IL para carregar a string
             codigoObjeto.add("call void [mscorlib]System.Console::Write(string)");
-        } else if (id.startsWith("b_")) {
-            codigoObjeto.add("call void [mscorlib]System.Console::Write(bool)");
+        } else {
+            // Caso contrário, tratar como identificador
+            if (!tabelaSimbolos.containsKey(lexeme)) {
+                throw new SemanticError("Identificador '" + lexeme + "' não declarado.", token.getPosition());
+            }
+
+            // Gerar código objeto para carregar o valor do identificador
+            codigoObjeto.add("ldloc " + lexeme);
+
+            // Determinar instrução de escrita com base no tipo do identificador
+            String tipoIL = switch (lexeme.substring(0, 2)) {
+                case "i_" -> {
+                    codigoObjeto.add("conv.r8"); // Inteiros devem ser convertidos para float64
+                    yield "call void [mscorlib]System.Console::Write(float64)";
+                }
+                case "f_" ->
+                    "call void [mscorlib]System.Console::Write(float64)";
+                case "s_" ->
+                    "call void [mscorlib]System.Console::Write(string)";
+                case "b_" ->
+                    "call void [mscorlib]System.Console::Write(bool)";
+                default ->
+                    throw new SemanticError("Tipo não suportado para escrita: " + lexeme, token.getPosition());
+            };
+
+            // Adicionar instrução de escrita ao código objeto
+            codigoObjeto.add(tipoIL);
         }
     }
 
