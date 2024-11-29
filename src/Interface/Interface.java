@@ -56,7 +56,8 @@ public class Interface extends JFrame {
     private JLabel status;
     private boolean arqSalvo = false;
     private File arquivoAtual;
-    private List<String> codigoObjeto = new ArrayList();
+//    private List<String> codigoObjeto = new ArrayList();
+    private Semantico semantico = new Semantico();
 
     private JTextArea editor;
 
@@ -83,62 +84,72 @@ public class Interface extends JFrame {
         }
     }
 
-    private void salvarCodigoObjeto() {
-        if (arquivoAtual != null) {
-            String nomeArquivo = arquivoAtual.getName();
-            String nomeArquivoIL = nomeArquivo.substring(0, nomeArquivo.lastIndexOf('.')) + ".il";
-            File arquivoIL = new File(arquivoAtual.getParent(), nomeArquivoIL);
-
-            try (FileWriter writer = new FileWriter(arquivoIL)) {
-                for (String linha : codigoObjeto) {
-                    writer.write(linha + "\n");
-                }
-                mensagem.append("\nArquivo .il gerado: " + arquivoIL.getAbsolutePath());
-            } catch (IOException e) {
-                mensagem.setText("Erro ao salvar o arquivo .il");
-            }
-        } else {
-            mensagem.setText("Salve o arquivo antes de compilar para gerar o .il");
-        }
+private void salvarCodigoObjeto() {
+    if (arquivoAtual == null) {
+        mensagem.setText("Salve o arquivo antes de compilar para gerar o .il");
+        return;
     }
+
+    // Obter o nome e caminho do arquivo .il
+    String nomeArquivo = arquivoAtual.getName();
+    String nomeArquivoIL = nomeArquivo.substring(0, nomeArquivo.lastIndexOf('.')) + ".il";
+    File arquivoIL = new File(arquivoAtual.getParent(), nomeArquivoIL);
+
+    try (FileWriter writer = new FileWriter(arquivoIL)) {
+        // Obter o código objeto do Semantico
+        List<String> codigoObjeto = semantico.getCodigoObjeto();
+
+        // Verificar se há conteúdo no código objeto
+        if (codigoObjeto == null || codigoObjeto.isEmpty()) {
+            mensagem.setText("Erro: Código objeto está vazio. Certifique-se de que o código foi gerado corretamente.");
+            return;
+        }
+
+        // Usar StringBuilder para concatenar as linhas do código objeto
+        StringBuilder sb = new StringBuilder();
+        for (String linha : codigoObjeto) {
+            sb.append(linha).append("\n");
+        }
+
+        // Escrever no arquivo
+        writer.write(sb.toString());
+        mensagem.append("\nArquivo .il gerado com sucesso: " + arquivoIL.getAbsolutePath());
+    } catch (IOException e) {
+        mensagem.setText("Erro ao salvar o arquivo .il: " + e.getMessage());
+    }
+}
+
+
 
     private void Compilar() {
-        Lexico lexico = new Lexico();
-        Sintatico sintatico = new Sintatico();
-        Semantico semantico = new Semantico();
-        String text = editor.getText();
-        lexico.setInput(text);
+    Lexico lexico = new Lexico();
+    Sintatico sintatico = new Sintatico();
+    semantico = new Semantico();  // Inicializar a variável semantico
+    String text = editor.getText();
+    lexico.setInput(text);
 
-        try {
-            sintatico.parse(lexico, semantico);  // Tradução dirigida pela sintaxe
-            mensagem.setText("Programa compilado com sucesso");
-            salvarArquivo(arquivoAtual);
+    try {
+        // Tradução dirigida pela sintaxe
+        sintatico.parse(lexico, semantico);
+        mensagem.setText("Programa compilado com sucesso");
 
-            salvarCodigoObjeto();
-        } catch (LexicalError e1) {
-            mensagem.setText("Erro na linha "+ e1.getLinhaToken(editor.getText()) +  ": " + e1.getToken(editor.getText()) + " " + e1.getMessage());            
-            
-            mensagem.setPreferredSize(new Dimension(500, mensagem.getPreferredSize().height));
-
-        } catch (SyntaticError e2) {
-            String tokenClassName = sintatico.getTokenClassName();
-            String lexeme = sintatico.getToken();
-            String mensagemErro;
-
-            if (tokenClassName.equals("string")) {
-                mensagemErro = "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado constante_string " + e2.getMessage();
-            } else {
-                mensagemErro = "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado " + lexeme + " " + e2.getMessage();
-            }
-
-            mensagem.setText(mensagemErro);
-
-        } catch (SemanticError e3) {
-            System.out.println("entrou no semantico");
-            mensagem.setText("Erro semântico: " + e3.getMessage());
-            semantico.exibirCodigoObjeto();
-        }
+        // Salvar o código fonte original e o código objeto
+        salvarArquivo(arquivoAtual);
+        salvarCodigoObjeto();
+    } catch (LexicalError e1) {
+        mensagem.setText("Erro na linha " + e1.getLinhaToken(editor.getText()) + ": " + e1.getToken(editor.getText()) + " " + e1.getMessage());
+    } catch (SyntaticError e2) {
+        String tokenClassName = sintatico.getTokenClassName();
+        String lexeme = sintatico.getToken();
+        String mensagemErro = (tokenClassName.equals("string"))
+                ? "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado constante_string " + e2.getMessage()
+                : "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado " + lexeme + " " + e2.getMessage();
+        mensagem.setText(mensagemErro);
+    } catch (SemanticError e3) {
+        mensagem.setText("Erro semântico: " + e3.getMessage());
     }
+}
+
 
     public Interface() {
         // area que define que meu editor de texto vai possuir uma borda com numeros
@@ -613,7 +624,7 @@ public class Interface extends JFrame {
      * regenerated by the Form Editor.
      */
 
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">                          
     private void initComponents() {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -630,7 +641,7 @@ public class Interface extends JFrame {
         );
 
         pack();
-    }// </editor-fold>//GEN-END:initComponents
+    }// </editor-fold>                        
 
     /**
      * @param args the command line arguments
@@ -642,6 +653,6 @@ public class Interface extends JFrame {
         });
     }
 
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    // End of variables declaration//GEN-END:variables
+    // Variables declaration - do not modify                     
+    // End of variables declaration                   
 }
