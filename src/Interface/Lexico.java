@@ -60,9 +60,9 @@ public class Lexico implements Constants {
         String lexeme = input.substring(start, end);
         token = lookupToken(token, lexeme);
 
-        // Se o token é da categoria de palavra reservada mas o lexema não bate
+  
         if (token == t_pr && !isReservedWord(lexeme)) {
-            throw new LexicalError(lexeme + " palavra reservada inválida", start);
+            throw new LexicalError( " palavra reservada inválida", start);
         }
 
         return new Token(token, lexeme, start);

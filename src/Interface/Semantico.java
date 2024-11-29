@@ -125,6 +125,13 @@ public class Semantico implements Constants {
         codigoObjeto.add("stloc " + id);
     }
 
+    void exibirCodigoObjeto() {
+        System.out.println("Conteúdo de codigoObjeto:");
+        for (String linha : codigoObjeto) {
+            System.out.println(linha);
+        }
+    }
+
     private void acao102(Token token) throws SemanticError {
         for (String id : listaId) {
             // Verificar se o identificador já está declarado na tabela de símbolos

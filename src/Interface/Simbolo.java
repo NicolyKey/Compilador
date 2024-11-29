@@ -15,7 +15,8 @@ package Interface;
         private String tipo;
         private boolean usado;
         private int linha;
-
+        
+        
         public Simbolo(String id, String tipo, boolean usado, int linha) {
             this.id = id;
             this.tipo = tipo;

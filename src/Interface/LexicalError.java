@@ -8,8 +8,9 @@ public class LexicalError extends AnalysisError
         super(msg, position);
     }
 
-    public LexicalError(String msg)
+    public LexicalError(String msg, String palavra_reservada_inválida, int start)
     {
         super(msg);
     }
+
 }

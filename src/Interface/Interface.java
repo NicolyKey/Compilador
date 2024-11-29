@@ -83,6 +83,25 @@ public class Interface extends JFrame {
         }
     }
 
+    private void salvarCodigoObjeto() {
+        if (arquivoAtual != null) {
+            String nomeArquivo = arquivoAtual.getName();
+            String nomeArquivoIL = nomeArquivo.substring(0, nomeArquivo.lastIndexOf('.')) + ".il";
+            File arquivoIL = new File(arquivoAtual.getParent(), nomeArquivoIL);
+
+            try (FileWriter writer = new FileWriter(arquivoIL)) {
+                for (String linha : codigoObjeto) {
+                    writer.write(linha + "\n");
+                }
+                mensagem.append("\nArquivo .il gerado: " + arquivoIL.getAbsolutePath());
+            } catch (IOException e) {
+                mensagem.setText("Erro ao salvar o arquivo .il");
+            }
+        } else {
+            mensagem.setText("Salve o arquivo antes de compilar para gerar o .il");
+        }
+    }
+
     private void Compilar() {
         Lexico lexico = new Lexico();
         Sintatico sintatico = new Sintatico();
@@ -93,10 +112,12 @@ public class Interface extends JFrame {
         try {
             sintatico.parse(lexico, semantico);  // Tradução dirigida pela sintaxe
             mensagem.setText("Programa compilado com sucesso");
+            salvarArquivo(arquivoAtual);
 
+            salvarCodigoObjeto();
         } catch (LexicalError e1) {
-            mensagem.setText("Erro na linha " + e1.getPosition(editor.getText()) + ": "  + e1.getMessage());
-            System.out.println("erros"+ e1.getToken(editor.getText()));
+            mensagem.setText("Erro na linha "+ e1.getLinhaToken(editor.getText()) +  ": " + e1.getToken(editor.getText()) + " " + e1.getMessage());            
+            
             mensagem.setPreferredSize(new Dimension(500, mensagem.getPreferredSize().height));
 
         } catch (SyntaticError e2) {
@@ -105,9 +126,9 @@ public class Interface extends JFrame {
             String mensagemErro;
 
             if (tokenClassName.equals("string")) {
-                mensagemErro = "Erro na linha " + e2.getPosition(editor.getText()) + " - encontrado constante_string " + e2.getMessage();
+                mensagemErro = "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado constante_string " + e2.getMessage();
             } else {
-                mensagemErro = "Erro na linha " + e2.getPosition(editor.getText()) + " - encontrado " + lexeme + " " + e2.getMessage();
+                mensagemErro = "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado " + lexeme + " " + e2.getMessage();
             }
 
             mensagem.setText(mensagemErro);
@@ -115,6 +136,7 @@ public class Interface extends JFrame {
         } catch (SemanticError e3) {
             System.out.println("entrou no semantico");
             mensagem.setText("Erro semântico: " + e3.getMessage());
+            semantico.exibirCodigoObjeto();
         }
     }
 
