@@ -27,7 +27,7 @@ public class Semantico implements Constants {
             case 102 ->
                 acao102(token);
             case 103 ->
-                acao103();
+                acao103(token);
             case 104 ->
                 acao104(token);
             case 105 ->
@@ -104,7 +104,7 @@ public class Semantico implements Constants {
 
     private void acao101() throws SemanticError {
         codigoObjeto.add("ret");
-        codigoObjeto.add("} }");
+        codigoObjeto.add("} \n }");
     }
 
     private void acao102(Token token) throws SemanticError {
@@ -131,34 +131,46 @@ public class Semantico implements Constants {
         listaId.clear();
     }
 
-    private void acao103() throws SemanticError {
-        String tipoExpressao = pilhaTipos.pop();
+    private void acao103(Token token) throws SemanticError {
+    // Desempilha o tipo da expressão
+    String tipoExpressao = pilhaTipos.pop();
 
-        if (tipoExpressao.equals("int64")) {
-            codigoObjeto.add("conv.i8");
-        }
-
-        for (int i = 0; i < listaId.size() - 1; i++) {
-            codigoObjeto.add("dup");
-        }
-
-        for (String id : listaId) {
-            if (!tabelaSimbolos.containsKey(id)) {
-                throw new SemanticError(id + " não declarado", token.getPosition());
-            }
-            String tipoIdentificador = tabelaSimbolos.get(id).getTipo();
-
-            if (!tipoIdentificador.equals(tipoExpressao)) {
-                throw new SemanticError(
-                        "Tipo incompatível: não é possível atribuir " + tipoExpressao + " a " + tipoIdentificador,
-                        token.getPosition()
-                );
-            }
-            codigoObjeto.add("stloc " + id);
-        }
-
-        listaId.clear();
+    // Converte para int64 se necessário
+    if (tipoExpressao.equals("int64")) {
+        codigoObjeto.add("conv.i8");
     }
+
+    // Duplica valores na pilha conforme o número de identificadores
+    for (int i = 0; i < listaId.size() - 1; i++) {
+        codigoObjeto.add("dup");
+    }
+
+    // Verifica cada identificador em listaId
+    for (String id : listaId) {
+        // Verifica se o identificador foi declarado
+        if (!tabelaSimbolos.containsKey(id)) {
+            throw new SemanticError(id + " não declarado", token.getPosition());
+        }
+
+        // Obtém o tipo do identificador na tabela de símbolos
+        String tipoIdentificador = tabelaSimbolos.get(id).getTipo();
+
+        // Verifica compatibilidade de tipos
+        if (!tipoIdentificador.equals(tipoExpressao)) {
+            throw new SemanticError(
+                    "Tipo incompatível: não é possível atribuir " + tipoExpressao + " a " + tipoIdentificador,
+                    token.getPosition()
+            );
+        }
+
+        // Gera o código objeto para a atribuição
+        codigoObjeto.add("stloc " + id);
+    }
+
+    // Limpa a lista de identificadores após o uso
+    listaId.clear();
+}
+
 
     private void acao104(Token token) throws SemanticError {
         String id = token.getLexeme();
@@ -389,12 +401,12 @@ private String novoRotulo() {
 
     private void acao118() {
         pilhaTipos.push("bool");
-        codigoObjeto.add("ldc.i4 1\n");
+        codigoObjeto.add("ldc.i4.1\n");
     }
 
     private void acao119() throws SemanticError {
         pilhaTipos.push("bool");
-        codigoObjeto.add("ldc.i4 0\n");
+        codigoObjeto.add("ldc.i4.0\n");
     }
 
     private void acao120() {
