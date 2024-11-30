@@ -6,7 +6,7 @@ Compilador feito em Java para a disciplina de Compiladores 2024-2
    A linguagem 2024.02 comporta os principios de uma linguagem de programação comum
    
 - Palavras reservadas da Liguagem: 
-
+```
 main = pr : "main"
 read = pr : "read"
 true = pr : "true"
@@ -20,16 +20,26 @@ repeat = pr : "repeat"
 until = pr : "until"
 while = pr : "while"
 end = pr : "end"
+```
 
+# Identificadores:
+
+```
+i_ = int64
+f_ = float64
+b_ = boolean
+s_= string
+```
 
 # Exemplificação de código aceito:
 
-main 
+```main 
  i_lado, i_area; 
  read ("digite um valor para lado: ", i_lado); 
  i_area = i_lado * i_lado; 
  writeln (i_area); 
 end
+```
 
 
 
