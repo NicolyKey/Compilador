@@ -33,7 +33,8 @@ s_= string
 
 # Exemplificação de código aceito:
 
-```main 
+```
+main 
  i_lado, i_area; 
  read ("digite um valor para lado: ", i_lado); 
  i_area = i_lado * i_lado; 
