@@ -123,7 +123,7 @@ public class Semantico implements Constants {
                 case "b_" ->
                     "bool";
                 default ->
-                    throw new SemanticError("Identificador '" + id + "' deve começar com i_, f_, s_ ou b_", token.getPosition());
+                    throw new SemanticError("Identificador '" + id + "' deve começar com i_, f_, s_ ou b_");
             };
             tabelaSimbolos.put(id, new Simbolo(id, tipoIL, false, token.getPosition()));
             codigoObjeto.add(".locals (" + tipoIL + " " + id + ")");
@@ -132,45 +132,35 @@ public class Semantico implements Constants {
     }
 
     private void acao103(Token token) throws SemanticError {
-    // Desempilha o tipo da expressão
-    String tipoExpressao = pilhaTipos.pop();
+        String tipoExpressao = pilhaTipos.pop();
 
-    // Converte para int64 se necessário
-    if (tipoExpressao.equals("int64")) {
-        codigoObjeto.add("conv.i8");
-    }
-
-    // Duplica valores na pilha conforme o número de identificadores
-    for (int i = 0; i < listaId.size() - 1; i++) {
-        codigoObjeto.add("dup");
-    }
-
-    // Verifica cada identificador em listaId
-    for (String id : listaId) {
-        // Verifica se o identificador foi declarado
-        if (!tabelaSimbolos.containsKey(id)) {
-            throw new SemanticError(id + " não declarado", token.getPosition());
+        if (tipoExpressao.equals("int64")) {
+            codigoObjeto.add("conv.i8");
         }
 
-        // Obtém o tipo do identificador na tabela de símbolos
-        String tipoIdentificador = tabelaSimbolos.get(id).getTipo();
-
-        // Verifica compatibilidade de tipos
-        if (!tipoIdentificador.equals(tipoExpressao)) {
-            throw new SemanticError(
-                    "Tipo incompatível: não é possível atribuir " + tipoExpressao + " a " + tipoIdentificador,
-                    token.getPosition()
-            );
+        for (int i = 0; i < listaId.size() - 1; i++) {
+            codigoObjeto.add("dup");
         }
 
-        // Gera o código objeto para a atribuição
-        codigoObjeto.add("stloc " + id);
+        for (String id : listaId) {
+            if (!tabelaSimbolos.containsKey(id)) {
+                throw new SemanticError(id + " não declarado");
+            }
+
+            String tipoIdentificador = tabelaSimbolos.get(id).getTipo();
+
+            if (!tipoIdentificador.equals(tipoExpressao)) {
+                throw new SemanticError(
+                        "Tipo incompatível: não é possível atribuir " + tipoExpressao + " a " + tipoIdentificador,
+                        token.getPosition()
+                );
+            }
+
+            codigoObjeto.add("stloc " + id);
+        }
+
+        listaId.clear();
     }
-
-    // Limpa a lista de identificadores após o uso
-    listaId.clear();
-}
-
 
     private void acao104(Token token) throws SemanticError {
         String id = token.getLexeme();
@@ -181,7 +171,7 @@ public class Semantico implements Constants {
         String lexeme = token.getLexeme();
 
         if (!tabelaSimbolos.containsKey(lexeme)) {
-            throw new SemanticError(lexeme + " não declarado", token.getPosition());
+            throw new SemanticError(lexeme + " não declarado");
         }
 
         codigoObjeto.add("call string [mscorlib]System.Console::ReadLine()");
@@ -233,18 +223,36 @@ public class Semantico implements Constants {
 
     private void acao107(Token token) throws SemanticError {
         for (String id : listaId) {
-            if (!tabelaSimbolos.containsKey(id)) {
-                throw new SemanticError("Variável '" + id + "' não declarada.", token.getPosition());
-            }
-            String tipo = tabelaSimbolos.get(id).getTipo();
-            codigoObjeto.add("call void [mscorlib]System.Console::WriteLine()");
+            String tipo = pilhaTipos.pop();
+
             if ("int64".equals(tipo)) {
-                codigoObjeto.add("call int64 [mscorlib]System.Int64::Parse(string)");
-            } else if ("float64".equals(tipo)) {
-                codigoObjeto.add("call float64 [mscorlib]System.Double::Parse(string)");
+                codigoObjeto.add("conv.i8");
             }
-            codigoObjeto.add("stloc " + id);
-            tabelaSimbolos.get(id).setUsado(true);
+
+            switch (tipo) {
+                case "int64":
+                    codigoObjeto.add("call void [mscorlib]System.Console::WriteLine(int64)");
+                    break;
+                case "float64":
+                    codigoObjeto.add("call void [mscorlib]System.Console::WriteLine(float64)");
+                    break;
+                case "string":
+                    codigoObjeto.add("call void [mscorlib]System.Console::WriteLine(string)");
+                    break;
+                case "bool":
+                    codigoObjeto.add("call void [mscorlib]System.Console::WriteLine(bool)");
+                    break;
+                default:
+                    throw new SemanticError("Tipo inválido para operação de escrita: " + tipo, token.getPosition());
+            }
+        }
+
+        for (int i = codigoObjeto.size() - 1; i >= 0; i--) {
+            if (codigoObjeto.get(i).startsWith("call void [mscorlib]System.Console::Write(")) {
+                String linhaAtual = codigoObjeto.get(i);
+                codigoObjeto.set(i, linhaAtual.replace("Write(", "WriteLine("));
+                break;
+            }
         }
         listaId.clear();
     }
@@ -273,52 +281,53 @@ public class Semantico implements Constants {
                 throw new SemanticError("Tipo inválido para operação de escrita: " + tipo);
         }
     }
-private void acao109() throws SemanticError {
-    String novoRotulo1 = novoRotulo();
-    pilhaRotulos.push(novoRotulo1);
-    String novoRotulo2 = novoRotulo();
-    codigoObjeto.add(String.format("brfalse %s", novoRotulo2));
-    pilhaRotulos.push(novoRotulo2);
-}
 
-private void acao110() throws SemanticError {
-    String rotuloDesempilhado2 = pilhaRotulos.pop();
-    String rotuloDesempilhado1 = pilhaRotulos.pop();
-    codigoObjeto.add(String.format("br %s", rotuloDesempilhado1));
-    pilhaRotulos.push(rotuloDesempilhado1);
-    codigoObjeto.add(String.format("%s:", rotuloDesempilhado2));
-}
+    private void acao109() throws SemanticError {
+        String novoRotulo1 = novoRotulo();
+        pilhaRotulos.push(novoRotulo1);
+        String novoRotulo2 = novoRotulo();
+        codigoObjeto.add(String.format("brfalse %s", novoRotulo2));
+        pilhaRotulos.push(novoRotulo2);
+    }
 
-private void acao111() throws SemanticError {
-    String rotuloDesempilhado = pilhaRotulos.pop();
-    codigoObjeto.add(String.format("%s:", rotuloDesempilhado));
-}
+    private void acao110() throws SemanticError {
+        String rotuloDesempilhado2 = pilhaRotulos.pop();
+        String rotuloDesempilhado1 = pilhaRotulos.pop();
+        codigoObjeto.add(String.format("br %s", rotuloDesempilhado1));
+        pilhaRotulos.push(rotuloDesempilhado1);
+        codigoObjeto.add(String.format("%s:", rotuloDesempilhado2));
+    }
 
-private void acao112() throws SemanticError {
-    String novoRotulo = novoRotulo();
-    codigoObjeto.add(String.format("brfalse %s", novoRotulo));
-    pilhaRotulos.push(novoRotulo);
-}
+    private void acao111() throws SemanticError {
+        String rotuloDesempilhado = pilhaRotulos.pop();
+        codigoObjeto.add(String.format("%s:", rotuloDesempilhado));
+    }
 
-private void acao113() {
-    String novoRotulo = novoRotulo();
-    codigoObjeto.add(String.format("%s:", novoRotulo));
-    pilhaRotulos.push(novoRotulo);
-}
+    private void acao112() throws SemanticError {
+        String novoRotulo = novoRotulo();
+        codigoObjeto.add(String.format("brfalse %s", novoRotulo));
+        pilhaRotulos.push(novoRotulo);
+    }
 
-private void acao114() {
-    String rotuloDesempilhado = pilhaRotulos.pop();
-    codigoObjeto.add(String.format("brtrue %s", rotuloDesempilhado));
-}
+    private void acao113() {
+        String novoRotulo = novoRotulo();
+        codigoObjeto.add(String.format("%s:", novoRotulo));
+        pilhaRotulos.push(novoRotulo);
+    }
 
-private void acao115() throws SemanticError {
-    String rotuloDesempilhado = pilhaRotulos.pop();
-    codigoObjeto.add(String.format("brfalse %s", rotuloDesempilhado));
-}
+    private void acao114() {
+        String rotuloDesempilhado = pilhaRotulos.pop();
+        codigoObjeto.add(String.format("brtrue %s", rotuloDesempilhado));
+    }
 
-private String novoRotulo() {
-    return "rotulo" + contadorRotulos++;
-}
+    private void acao115() throws SemanticError {
+        String rotuloDesempilhado = pilhaRotulos.pop();
+        codigoObjeto.add(String.format("brfalse %s", rotuloDesempilhado));
+    }
+
+    private String novoRotulo() {
+        return "rotulo" + contadorRotulos++;
+    }
 
     private void comparacaoTipos(String operador) throws SemanticError {
         String tipo1 = pilhaTipos.pop();
