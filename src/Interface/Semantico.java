@@ -13,8 +13,10 @@ public class Semantico implements Constants {
     private String operadorRelacional = "";
     private Stack<String> pilhaTipos = new Stack<>();
     private Stack<String> pilhaRotulos = new Stack<>();
+    private String operadorRelacionalAtual;
     private Map<String, Simbolo> tabelaSimbolos = new HashMap<>();
     private int contadorRotulos = 0;
+    private Token token;
 
     public void executeAction(int action, Token token) throws SemanticError {
         switch (action) {
@@ -53,7 +55,7 @@ public class Semantico implements Constants {
             case 116 ->
                 acao116(token);
             case 117 ->
-                acao117();
+                acao117(token);
             case 118 ->
                 acao118();
             case 119 ->
@@ -61,7 +63,7 @@ public class Semantico implements Constants {
             case 120 ->
                 acao120(token);
             case 121 ->
-                acao121();
+                acao121(token);
             case 122 ->
                 acao122();
             case 123 ->
@@ -99,47 +101,16 @@ public class Semantico implements Constants {
     }
 
     private void acao101() throws SemanticError {
-        // Finalizar código objeto
         codigoObjeto.add("ret");
         codigoObjeto.add("} }");
-
-        // Verificar se há variáveis não utilizadas
-        for (String id : tabelaSimbolos.keySet()) {
-            Simbolo simbolo = tabelaSimbolos.get(id);
-//            if (!simbolo.isUsado()) {
-//                throw new SemanticError("Variável '" + id + "' declarada, mas não utilizada. ", simbolo.getLinha());
-//            }
-        }
-    }
-
-    private void acaoAtribuicao(String id) throws SemanticError {
-        // Verificar se a variável foi declarada
-        if (!tabelaSimbolos.containsKey(id)) {
-            throw new SemanticError("Variável '" + id + "' não declarada.", 0); // Ajuste a posição conforme necessário
-        }
-
-        // Marcar a variável como usada
-        tabelaSimbolos.get(id).setUsado(true);
-
-        // Gerar código objeto para armazenar o valor na variável
-        codigoObjeto.add("stloc " + id);
-    }
-
-    void exibirCodigoObjeto() {
-        System.out.println("Conteúdo de codigoObjeto:");
-        for (String linha : codigoObjeto) {
-            System.out.println(linha);
-        }
     }
 
     private void acao102(Token token) throws SemanticError {
         for (String id : listaId) {
-            // Verificar se o identificador já está declarado na tabela de símbolos
             if (tabelaSimbolos.containsKey(id)) {
-                throw new SemanticError("Identificador '" + id + "' já declarado.", token.getPosition());
+                throw new SemanticError(token.getLexeme() + " já declarado", token.getPosition());
             }
 
-            // Determinar o tipo com base no prefixo do identificador
             String tipoIL = switch (id.substring(0, 2)) {
                 case "i_" ->
                     "int64";
@@ -150,130 +121,80 @@ public class Semantico implements Constants {
                 case "b_" ->
                     "bool";
                 default ->
-                    throw new SemanticError(
-                            "Identificador '" + id + "' deve começar com i_, f_, s_ ou b_", token.getPosition());
+                    throw new SemanticError("Identificador '" + id + "' deve começar com i_, f_, s_ ou b_", token.getPosition());
             };
-
-            // Inserir na tabela de símbolos
             tabelaSimbolos.put(id, new Simbolo(id, tipoIL, false, token.getPosition()));
-
-            // Gerar o código IL para declarar o identificador
             codigoObjeto.add(".locals (" + tipoIL + " " + id + ")");
         }
-
-        // Limpar a lista de identificadores após o processamento
         listaId.clear();
     }
 
-    private void acao103() {
+    private void acao103() throws SemanticError {
+        String tipo = pilhaTipos.pop();
+
+        if (tipo.equals("int64")) {
+            codigoObjeto.add("conv.i8");
+        }
+
+        for (int i = 0; i < listaId.size() - 1; i++) {
+            codigoObjeto.add("dup");
+        }
+
+        for (int i = 0; i < listaId.size(); i++) {
+            String id = listaId.get(i);
+
+            if (!tabelaSimbolos.containsKey(id)) {
+                throw new SemanticError(token.getLexeme() + " não declarado", token.getPosition());
+            }
+
+            codigoObjeto.add("stloc " + id);
+        }
         listaId.clear();
     }
 
     private void acao104(Token token) throws SemanticError {
         String id = token.getLexeme();
-
-        // Verificar prefixo e determinar tipo
-        String tipo;
-        if (id.startsWith("i_")) {
-            tipo = "int64";
-        } else if (id.startsWith("f_")) {
-            tipo = "float64";
-        } else if (id.startsWith("s_")) {
-            tipo = "string";
-        } else if (id.startsWith("b_")) {
-            tipo = "bool";
-        } else {
-            throw new SemanticError("Identificador '" + id + "' deve começar com i_, f_, s_ ou b_", token.getPosition());
-        }
-
         listaId.add(id);
     }
-//modifica read
 
     private void acao105(Token token) throws SemanticError {
         String lexeme = token.getLexeme();
 
-        // Verificar se é uma constante string ou identificador
-        if (lexeme.startsWith("\"") && lexeme.endsWith("\"")) {
-            // Constante string: Gerar código para exibição
-            codigoObjeto.add("ldstr " + lexeme); // Instrução IL para carregar uma string
-            codigoObjeto.add("call void [mscorlib]System.Console::Write(string)");
-        } else {
-            // É um identificador, verificar se está declarado
-            if (!tabelaSimbolos.containsKey(lexeme)) {
-                throw new SemanticError("Identificador '" + lexeme + "' não declarado.", token.getPosition());
-            }
-
-            // Gerar código para leitura com base no tipo do identificador
-            String tipoIL = switch (lexeme.substring(0, 2)) {
-                case "i_" ->
-                    "call int64 [mscorlib]System.Int64::Parse(string)";
-                case "f_" ->
-                    "call float64 [mscorlib]System.Double::Parse(string)";
-                case "s_" ->
-                    ""; // Strings não precisam de conversão
-                case "b_" ->
-                    "call bool [mscorlib]System.Boolean::Parse(string)";
-                default ->
-                    throw new SemanticError("Tipo não suportado para leitura: " + lexeme, token.getPosition());
-            };
-
-            // Sempre chamar ReadLine() primeiro
-            codigoObjeto.add("call string [mscorlib]System.Console::ReadLine()");
-
-            // Adicionar conversão se necessário
-            if (!tipoIL.isEmpty()) {
-                codigoObjeto.add(tipoIL);
-            }
-
-            // Armazenar valor lido no identificador
-            codigoObjeto.add("stloc " + lexeme);
-
-            // Marcar o identificador como usado
-            tabelaSimbolos.get(lexeme).setUsado(true);
+        if (!tabelaSimbolos.containsKey(lexeme)) {
+            throw new SemanticError(lexeme + " não declarado", token.getPosition());
         }
-    }
 
-    //ação write
-    private void acao106(Token token) throws SemanticError {
-        String lexeme = token.getLexeme();
+        codigoObjeto.add("call string [mscorlib]System.Console::ReadLine()");
 
-        // Verificar se o lexema é uma constante string
-        if (lexeme.startsWith("\"") && lexeme.endsWith("\"")) {
-            // Gerar código para carregar e escrever a constante string
-            codigoObjeto.add("ldstr " + lexeme); // Instrução IL para carregar a string
-            codigoObjeto.add("call void [mscorlib]System.Console::Write(string)");
-        } else {
-            // Caso contrário, tratar como identificador
-            if (!tabelaSimbolos.containsKey(lexeme)) {
-                throw new SemanticError("Identificador '" + lexeme + "' não declarado.", token.getPosition());
+        String tipoIL = switch (lexeme.substring(0, 2)) {
+            case "i_" -> {
+                yield "call int64 [mscorlib]System.Int64::Parse(string)";
             }
-
-            // Gerar código objeto para carregar o valor do identificador
-            codigoObjeto.add("ldloc " + lexeme);
-
-            // Determinar instrução de escrita com base no tipo do identificador
-            String tipoIL = switch (lexeme.substring(0, 2)) {
-                case "i_" -> {
-                    codigoObjeto.add("conv.r8"); // Inteiros devem ser convertidos para float64
-                    yield "call void [mscorlib]System.Console::Write(float64)";
-                }
-                case "f_" ->
-                    "call void [mscorlib]System.Console::Write(float64)";
-                case "s_" ->
-                    "call void [mscorlib]System.Console::Write(string)";
-                case "b_" ->
-                    "call void [mscorlib]System.Console::Write(bool)";
-                default ->
-                    throw new SemanticError("Tipo não suportado para escrita: " + lexeme, token.getPosition());
-            };
-
-            // Adicionar instrução de escrita ao código objeto
+            case "f_" -> {
+                yield "call float64 [mscorlib]System.Double::Parse(string)";
+            }
+            case "s_" -> {
+                yield "";
+            }
+            case "b_" -> {
+                yield "call bool [mscorlib]System.Boolean::Parse(string)";
+            }
+            default ->
+                throw new SemanticError("Tipo não suportado para leitura: " + lexeme, token.getPosition());
+        };
+        if (!tipoIL.isEmpty()) {
             codigoObjeto.add(tipoIL);
         }
+
+        codigoObjeto.add("stloc " + lexeme);
     }
 
-// Adicione este método para verificar o tipo baseado no prefixo
+    private void acao106(Token token) throws SemanticError {
+        String lexeme = token.getLexeme();
+        codigoObjeto.add("ldstr " + lexeme);
+        codigoObjeto.add("call void [mscorlib]System.Console::Write(string)");
+    }
+
     private String getTipoFromId(String id) throws SemanticError {
         if (id.startsWith("i_")) {
             return "int64";
@@ -296,7 +217,7 @@ public class Semantico implements Constants {
                 throw new SemanticError("Variável '" + id + "' não declarada.", token.getPosition());
             }
             String tipo = tabelaSimbolos.get(id).getTipo();
-            codigoObjeto.add("call string [mscorlib]System.Console::ReadLine()");
+            codigoObjeto.add("call void [mscorlib]System.Console::WriteLine()");
             if ("int64".equals(tipo)) {
                 codigoObjeto.add("call int64 [mscorlib]System.Int64::Parse(string)");
             } else if ("float64".equals(tipo)) {
@@ -309,98 +230,61 @@ public class Semantico implements Constants {
     }
 
     private void acao108() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
+        // Desempilha o tipo da pilha de tipos
+        String tipo = pilhaTipos.pop();
 
-        if (!tipo1.equals(tipo2)) {
-            throw new SemanticError("Operação de adição requer operandos do mesmo tipo.");
+        // Caso o tipo seja int64, converta para float64 antes da saída (em IL, int64 é tratado como float64)
+        if (tipo.equals("int64")) {
+            codigoObjeto.add("conv.i8"); // Converte para int64 (caso necessário)
         }
 
-        if (!tipo1.equals("int64") && !tipo1.equals("float64")) {
-            throw new SemanticError("Operação de adição suportada apenas para tipos numéricos.");
+        // Gera o código objeto para escrever o valor com base no tipo desempilhado
+        switch (tipo) {
+            case "int64":
+                codigoObjeto.add("call void [mscorlib]System.Console::Write(int64)");
+                break;
+            case "float64":
+                codigoObjeto.add("call void [mscorlib]System.Console::Write(float64)");
+                break;
+            case "string":
+                codigoObjeto.add("call void [mscorlib]System.Console::Write(string)");
+                break;
+            case "bool":
+                codigoObjeto.add("call void [mscorlib]System.Console::Write(bool)");
+                break;
+            default:
+                throw new SemanticError("Tipo inválido para operação de escrita: " + tipo);
         }
-
-        // Gera o código da soma
-        codigoObjeto.add("add");
-
-        // Empilha o tipo resultante
-        pilhaTipos.push(tipo1);
     }
 
     private void acao109() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
+        String novoRotulo1 = novoRotulo();
+        pilhaRotulos.push(novoRotulo1);
 
-        if (!tipo1.equals(tipo2)) {
-            throw new SemanticError("Operação de subtração requer operandos do mesmo tipo.");
-        }
+        String novoRotulo2 = novoRotulo();
+        codigoObjeto.add(String.format("brfalse %s\n", novoRotulo2));
 
-        if (!tipo1.equals("int64") && !tipo1.equals("float64")) {
-            throw new SemanticError("Operação de subtração suportada apenas para tipos numéricos.");
-        }
-
-        // Gera o código da subtração
-        codigoObjeto.add("sub");
-
-        // Empilha o tipo resultante
-        pilhaTipos.push(tipo1);
+        pilhaRotulos.push(novoRotulo2);
     }
 
     private void acao110() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
+        String rotuloDesempilhado2 = pilhaRotulos.pop();
+        String rotuloDesempilhado1 = pilhaRotulos.pop();
 
-        if (!tipo1.equals(tipo2)) {
-            throw new SemanticError("Operação de multiplicação requer operandos do mesmo tipo.");
-        }
-
-        if (!tipo1.equals("int64") && !tipo1.equals("float64")) {
-            throw new SemanticError("Operação de multiplicação suportada apenas para tipos numéricos.");
-        }
-
-        // Gera o código da multiplicação
-        codigoObjeto.add("mul");
-
-        // Empilha o tipo resultante
-        pilhaTipos.push(tipo1);
+        codigoObjeto.add(String.format("br %s", rotuloDesempilhado1));
+        pilhaRotulos.push(rotuloDesempilhado1);
+        codigoObjeto.add(String.format("%s:", rotuloDesempilhado2));
     }
 
     private void acao111() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
-
-        if (!tipo1.equals(tipo2)) {
-            throw new SemanticError("Operação de divisão requer operandos do mesmo tipo.");
-        }
-
-        if (!tipo1.equals("int64") && !tipo1.equals("float64")) {
-            throw new SemanticError("Operação de divisão suportada apenas para tipos numéricos.");
-        }
-
-        // Gera o código da divisão
-        codigoObjeto.add("div");
-
-        // Empilha o tipo resultante
-        pilhaTipos.push(tipo1);
+        String rotuloDesempilhado = pilhaRotulos.pop();
+        codigoObjeto.add(String.format("%s:", rotuloDesempilhado));
     }
 
     private void acao112() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
-
-        if (!tipo1.equals(tipo2)) {
-            throw new SemanticError("Operação '>' requer operandos do mesmo tipo.");
-        }
-
-        if (!tipo1.equals("int64") && !tipo1.equals("float64")) {
-            throw new SemanticError("Operação '>' suportada apenas para tipos numéricos.");
-        }
-
-        // Gera o código para comparação maior que
-        codigoObjeto.add("cgt");
-
-        // Empilha o tipo resultante
-        pilhaTipos.push("bool");
+        String novoRotulo = novoRotulo();
+        codigoObjeto.add(String.format("brfalse %s", novoRotulo));
+        pilhaRotulos.push(novoRotulo);
     }
 
     private void acao113() {
@@ -415,149 +299,105 @@ public class Semantico implements Constants {
     }
 
     private void acao115(Token token) throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
-
-        // Lógica para determinar o tipo resultante conforme a TABELA DE TIPOS
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "&");
-
-        if (tipoResultante == null) {
-            throw new SemanticError("Tipos incompatíveis para a operação", token.getPosition());
-        }
-
-        // Empilhar o tipo resultante na pilha de tipos
-        pilhaTipos.push(tipoResultante);
+        String rotuloDesempilhado = pilhaRotulos.pop();
+        codigoObjeto.add(String.format("brfalse %s", rotuloDesempilhado));
     }
 
     private void acao116(Token token) throws SemanticError {
         String tipo2 = pilhaTipos.pop();
         String tipo1 = pilhaTipos.pop();
 
-        // Lógica para determinar o tipo resultante conforme a TABELA DE TIPOS
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "|");
-
+        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "&&");
         if (tipoResultante == null) {
-            throw new SemanticError("Tipos incompatíveis para a operação", token.getPosition());
+            throw new SemanticError("Tipos incompatíveis para a operação '&&'", token.getPosition());
         }
-
-        // Empilhar o tipo resultante na pilha de tipos
         pilhaTipos.push(tipoResultante);
+        codigoObjeto.add("and");
     }
 
-    private void acao117() {
-        pilhaTipos.push("bool");
-        codigoObjeto.add("ldc.i4.1");
+    private void acao117(Token token) throws SemanticError {
+        String tipo2 = pilhaTipos.pop();
+        String tipo1 = pilhaTipos.pop();
+
+        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "||");
+        if (tipoResultante == null) {
+            throw new SemanticError("Tipos incompatíveis para a operação '||'", token.getPosition());
+        }
+
+        pilhaTipos.push(tipoResultante);
+        codigoObjeto.add("or");
     }
 
     private void acao118() {
         pilhaTipos.push("bool");
-        codigoObjeto.add("ldc.i4.0");
+        codigoObjeto.add("ldc.i8 1\n");
     }
 
     private void acao119() throws SemanticError {
-        String tipoExpressao = pilhaTipos.pop(); // Desempilha o tipo da expressão
-
-        // Gera código objeto para negação lógica
-        codigoObjeto.add("ldc.i4.0"); // Carrega o valor 0 na pilha
-        codigoObjeto.add("ceq"); // Compara com zero (0) para inverter o valor booleano
-
-        // Empilha o tipo resultante da negação, que é bool
         pilhaTipos.push("bool");
+        codigoObjeto.add("ldc.i8 0\n");
     }
 
     private void acao120(Token token) {
-        operadorRelacional = token.getLexeme();
+        codigoObjeto.add("ldc.i8 1\nxor\n");
     }
 
-    private void acao121() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
-
-        // Determina o tipo resultante da operação relacional
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "calcular");
-
-        // Gera código objeto para a operação relacional em IL
-        switch (operadorRelacional) {
-            case "==":
-                codigoObjeto.add("ceq");
-                break;
-            case "!=":
-                codigoObjeto.add("ceq");
-                codigoObjeto.add("ldc.i4.0");
-                codigoObjeto.add("ceq");
-                break;
-            case "<":
-                codigoObjeto.add("clt");
-                break;
-            case ">":
-                codigoObjeto.add("cgt");
-                break;
-
-        }
-
-        // Empilha o tipo resultante da operação
-        pilhaTipos.push(tipoResultante);
+    private void acao121(Token token) throws SemanticError {
+        operadorRelacionalAtual = token.getLexeme();
     }
 
     private void acao122() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
+        String tipo2 = pilhaTipos.pop(); // Tipo do lado direito
+        String tipo1 = pilhaTipos.pop(); // Tipo do lado esquerdo
 
-        // Verificar tipo resultante da operação
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "calcular");
-
-        // Gerar código objeto em IL
-        switch (tipoResultante) {
-            case "int64":
-                codigoObjeto.add("add");
-                break;
-            case "float64":
-                codigoObjeto.add("add");
-                break;
+        if (!(tipo1.equals("int64") || tipo1.equals("float64")) || !(tipo2.equals("int64") || tipo2.equals("float64"))) {
+            throw new SemanticError("Operador relacional inválido para os tipos: " + tipo1 + " e " + tipo2);
         }
 
-        // Empilhar o tipo resultante na pilha de tipos
-        pilhaTipos.push(tipoResultante);
+        pilhaTipos.push("bool");
+
+        switch (operadorRelacionalAtual) {
+            case "==":
+                codigoObjeto.add("ceq\n");
+                break;
+            case "!=":
+                codigoObjeto.add("ceq\n");
+                codigoObjeto.add("ldc.i8 1\nxor \n");
+                break;
+            case "<":
+                codigoObjeto.add("clt\n");
+                break;
+            case ">":
+                codigoObjeto.add("cgt\n");
+                break;
+            default:
+                throw new SemanticError("Operador relacional desconhecido: " + operadorRelacionalAtual);
+        }
     }
 
     private void acao123() throws SemanticError {
         String tipo2 = pilhaTipos.pop();
         String tipo1 = pilhaTipos.pop();
+        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "+");
 
-        // Verificar tipo resultante da operação
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "calcular");
-
-        // Gerar código objeto em IL
-        switch (tipoResultante) {
-            case "int64":
-                codigoObjeto.add("sub");
-                break;
-            case "float64":
-                codigoObjeto.add("sub");
-                break;
+        if (tipoResultante == null) {
+            throw new SemanticError("Tipos incompatíveis para a operação '+'");
         }
 
-        // Empilhar o tipo resultante na pilha de tipos
+        codigoObjeto.add("add");
         pilhaTipos.push(tipoResultante);
     }
 
     private void acao124() throws SemanticError {
         String tipo2 = pilhaTipos.pop();
         String tipo1 = pilhaTipos.pop();
-        // Verificar tipo resultante da operação
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "calcular");
 
-        // Gerar código objeto em IL
-        switch (tipoResultante) {
-            case "int64":
-                codigoObjeto.add("mul");
-                break;
-            case "float64":
-                codigoObjeto.add("mul");
-                break;
+        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "-");
+        if (tipoResultante == null) {
+            throw new SemanticError("Tipos incompatíveis para a operação '-'");
         }
 
-        // Empilhar o tipo resultante na pilha de tipos
+        codigoObjeto.add("sub");
         pilhaTipos.push(tipoResultante);
     }
 
@@ -565,141 +405,119 @@ public class Semantico implements Constants {
         String tipo2 = pilhaTipos.pop();
         String tipo1 = pilhaTipos.pop();
 
-        // Verificar tipo resultante da operação
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "calcular");
+        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "*");
 
-        // Gerar código objeto em IL
-        switch (tipoResultante) {
-            case "int64":
-                codigoObjeto.add("div");
-                break;
-            case "float64":
-                codigoObjeto.add("div");
-                break;
-
+        if ("int64".equals(tipoResultante) || "float64".equals(tipoResultante)) {
+            codigoObjeto.add("mul");
+        } else {
+            throw new SemanticError("Operação inválida entre tipos: " + tipo1 + " e " + tipo2);
         }
 
-        // Empilhar o tipo resultante na pilha de tipos
         pilhaTipos.push(tipoResultante);
     }
 
     private void acao126(Token token) throws SemanticError {
+        String tipo2 = pilhaTipos.pop();
+        String tipo1 = pilhaTipos.pop();
+
+        if (!tipo1.equals(tipo2)) {
+            throw new SemanticError("Tipos incompatíveis para a operação de divisão. Ambos os operandos devem ser do mesmo tipo.", token.getPosition());
+        }
+
+        if (!tipo1.equals("int64") && !tipo1.equals("float64")) {
+            throw new SemanticError("Operação de divisão suportada apenas para tipos numéricos (int64 ou float64).", token.getPosition());
+        }
+
+        codigoObjeto.add("div");
+        pilhaTipos.push(tipo1);
+    }
+
+    private String pegarTipoId(String id) throws SemanticError {
+        String prefixo = id.split("_")[0];
+        switch (prefixo) {
+            case "i":
+                return "int64";
+            case "f":
+                return "float64";
+            case "s":
+                return "string";
+            case "b":
+                return "bool";
+            default:
+                throw new SemanticError("Identificador de variável incorreto: " + id, token.getPosition());
+        }
+    }
+
+    private void acao127(Token token) throws SemanticError {
         String lexeme = token.getLexeme();
 
-        // Verificar se o identificador está na tabela de símbolos
         if (!tabelaSimbolos.containsKey(lexeme)) {
             throw new SemanticError(lexeme + " não declarado", token.getPosition());
         }
+        String varType = pegarTipoId(lexeme);
+        pilhaTipos.push(varType);
 
-        // Obter o tipo do identificador da tabela de símbolos
-        String tipo = tabelaSimbolos.get(lexeme).getTipo();
-
-        // Gerar código objeto para carregar o valor do identificador
         codigoObjeto.add("ldloc " + lexeme);
 
-        // Verificar se o tipo do identificador é int64 para conversão
-        if (tipo.equals("int") || tipo.equals("int64")) {
-            codigoObjeto.add("conv.r8"); // Converter para float64 (conv.r8)
-            tipo = "int64"; // Atualizar tipo para float64 na pilha de tipos
+        if ("int64".equals(varType)) {
+            codigoObjeto.add("conv.r8");
         }
-        if (tipo.equals("float")) {
-            tipo = "float64"; // Atualizar tipo para float64 na pilha de tipos
-        }
-        // Empilhar o tipo do identificador na pilhaTipos
-        pilhaTipos.push(tipo);
-    }
-
-    private void acao127(Token token) {
-        // Empilhar na pilha_tipos o tipo correspondente, conforme TABELA DE TIPOS, ou
-        // seja, int64
-        pilhaTipos.push("int64");
-
-        // Gerar código objeto para carregar o valor da constante
-        codigoObjeto.add("ldc.i8 " + token.getLexeme());
-
-        // Como cte_int é tratada como float64 em IL, converter para float64 (conv.r8)
-        codigoObjeto.add("conv.r8");
     }
 
     private void acao128(Token token) {
-        pilhaTipos.push("float64");
-        codigoObjeto.add("ldc.r8 " + token.getLexeme());
+        pilhaTipos.push("int64");
+        codigoObjeto.add("dc.i8 %s\\nconv.r8\\n" + token.getLexeme());
     }
 
     private void acao129(Token token) {
-        pilhaTipos.push("string");
-        codigoObjeto.add("ldstr " + token.getLexeme());
+        pilhaTipos.push("float64");
+        String valor = token.getLexeme().replace(",", ".");
+        codigoObjeto.add("ldc.r8 %s\n" + valor);
     }
 
     private void acao130() {
-        codigoObjeto.add("ldc.i8 -1"); // Carregar -1 na pilha como um inteiro de 64 bits
-        codigoObjeto.add("conv.r8"); // Converter para float64 (se necessário)
-        codigoObjeto.add("mul"); // Multiplicar pelo operando anterior na expressão
+        pilhaTipos.push("string");
+        codigoObjeto.add("ldstr %s\n" + token.getLexeme());
     }
 
     private String novoRotulo() {
         return "rotulo" + (contadorRotulos++);
     }
 
-    class Simbolo {
-
-        private String id;
-        private String tipo;
-        private boolean usado;
-        private int linha;
-
-        public Simbolo(String id, String tipo, boolean usado, int linha) {
-            this.id = id;
-            this.tipo = tipo;
-            this.usado = usado;
-            this.linha = linha;
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        public String getTipo() {
-            return tipo;
-        }
-
-        public boolean isUsado() {
-            return usado;
-        }
-
-        public void setUsado(boolean usado) {
-            this.usado = usado;
-        }
-
-        public int getLinha() {
-            return linha;
-        }
-    }
-
-    private String verificarTipoResultado(String operando1, String operando2, String operacao) {
-
-        // Consultar a tabela de tipos para operações binárias
-        if (operacao.equals("calcular")) {
-            if (operando1.equals("int64") && operando2.equals("int64")) {
+    private String verificarTipoResultado(String operando1, String operando2, String operacao) throws SemanticError {
+        // Operações aritméticas
+        if ("+".equals(operacao) || "-".equals(operacao) || "*".equals(operacao)) {
+            if ("int64".equals(operando1) && "int64".equals(operando2)) {
                 return "int64";
-            } else if ((operando1.equals("int64") && operando2.equals("float64"))
-                    || (operando1.equals("float64") && operando2.equals("int64"))
-                    || (operando1.equals("float64") && operando2.equals("float64"))) {
+            } else if (("int64".equals(operando1) && "float64".equals(operando2))
+                    || ("float64".equals(operando1) && "int64".equals(operando2))
+                    || ("float64".equals(operando1) && "float64".equals(operando2))) {
                 return "float64";
             }
-        } else if (operacao.equals("comparar")) {
-
-            return "bool";
-
-        } else if (operacao.equals("&") || operacao.equals("|")) {
-            if (operando1.equals("bool") && operando2.equals("bool")) {
+        } else if ("/".equals(operacao)) {
+            // Divisão exige que os tipos sejam iguais
+            if ("int64".equals(operando1) && "int64".equals(operando2)) {
+                return "int64";
+            } else if ("float64".equals(operando1) && "float64".equals(operando2)) {
+                return "float64";
+            } else {
+                throw new SemanticError("Divisão inválida entre tipos: " + operando1 + " e " + operando2);
+            }
+        } // Operações relacionais
+        else if ("<".equals(operacao) || "<=".equals(operacao) || ">".equals(operacao) || ">=".equals(operacao)
+                || "==".equals(operacao) || "!=".equals(operacao)) {
+            if (("int64".equals(operando1) || "float64".equals(operando1))
+                    && ("int64".equals(operando2) || "float64".equals(operando2))) {
                 return "bool";
             }
         }
-
-        // Caso não seja possível determinar o tipo resultante, retorna null ou lança
-        // uma exceção
-        return null;
+        // Operações lógicas
+//    else if ("&".equals(operacao) || "|".equals(operacao)) {
+//        if ("bool".equals(operando1) && "bool".equals(operando2)) {
+//            return "bool";
+//        }
+//    } 
+        throw new SemanticError("Operação inválida ou tipos incompatíveis: " + operando1 + " e " + operando2 + " com operação " + operacao);
     }
 
 }
