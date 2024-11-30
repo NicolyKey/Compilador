@@ -51,17 +51,17 @@ public class Semantico implements Constants {
             case 114 ->
                 acao114();
             case 115 ->
-                acao115(token);
+                acao115();
             case 116 ->
-                acao116(token);
+                acao116();
             case 117 ->
-                acao117(token);
+                acao117();
             case 118 ->
                 acao118();
             case 119 ->
                 acao119();
             case 120 ->
-                acao120(token);
+                acao120();
             case 121 ->
                 acao121(token);
             case 122 ->
@@ -81,7 +81,9 @@ public class Semantico implements Constants {
             case 129 ->
                 acao129(token);
             case 130 ->
-                acao130();
+                acao130(token);
+            case 131 ->
+                acao131();
             default ->
                 throw new SemanticError("Ação semântica desconhecida: " + action, token.getPosition());
         }
@@ -130,9 +132,9 @@ public class Semantico implements Constants {
     }
 
     private void acao103() throws SemanticError {
-        String tipo = pilhaTipos.pop();
+        String tipoExpressao = pilhaTipos.pop();
 
-        if (tipo.equals("int64")) {
+        if (tipoExpressao.equals("int64")) {
             codigoObjeto.add("conv.i8");
         }
 
@@ -140,15 +142,21 @@ public class Semantico implements Constants {
             codigoObjeto.add("dup");
         }
 
-        for (int i = 0; i < listaId.size(); i++) {
-            String id = listaId.get(i);
-
+        for (String id : listaId) {
             if (!tabelaSimbolos.containsKey(id)) {
-                throw new SemanticError(token.getLexeme() + " não declarado", token.getPosition());
+                throw new SemanticError(id + " não declarado", token.getPosition());
             }
+            String tipoIdentificador = tabelaSimbolos.get(id).getTipo();
 
+            if (!tipoIdentificador.equals(tipoExpressao)) {
+                throw new SemanticError(
+                        "Tipo incompatível: não é possível atribuir " + tipoExpressao + " a " + tipoIdentificador,
+                        token.getPosition()
+                );
+            }
             codigoObjeto.add("stloc " + id);
         }
+
         listaId.clear();
     }
 
@@ -230,15 +238,12 @@ public class Semantico implements Constants {
     }
 
     private void acao108() throws SemanticError {
-        // Desempilha o tipo da pilha de tipos
         String tipo = pilhaTipos.pop();
 
-        // Caso o tipo seja int64, converta para float64 antes da saída (em IL, int64 é tratado como float64)
         if (tipo.equals("int64")) {
-            codigoObjeto.add("conv.i8"); // Converte para int64 (caso necessário)
+            codigoObjeto.add("conv.i8");
         }
 
-        // Gera o código objeto para escrever o valor com base no tipo desempilhado
         switch (tipo) {
             case "int64":
                 codigoObjeto.add("call void [mscorlib]System.Console::Write(int64)");
@@ -256,89 +261,143 @@ public class Semantico implements Constants {
                 throw new SemanticError("Tipo inválido para operação de escrita: " + tipo);
         }
     }
+private void acao109() throws SemanticError {
+    String novoRotulo1 = novoRotulo();
+    pilhaRotulos.push(novoRotulo1);
+    String novoRotulo2 = novoRotulo();
+    codigoObjeto.add(String.format("brfalse %s", novoRotulo2));
+    pilhaRotulos.push(novoRotulo2);
+}
 
-    private void acao109() throws SemanticError {
-        String novoRotulo1 = novoRotulo();
-        pilhaRotulos.push(novoRotulo1);
+private void acao110() throws SemanticError {
+    String rotuloDesempilhado2 = pilhaRotulos.pop();
+    String rotuloDesempilhado1 = pilhaRotulos.pop();
+    codigoObjeto.add(String.format("br %s", rotuloDesempilhado1));
+    pilhaRotulos.push(rotuloDesempilhado1);
+    codigoObjeto.add(String.format("%s:", rotuloDesempilhado2));
+}
 
-        String novoRotulo2 = novoRotulo();
-        codigoObjeto.add(String.format("brfalse %s\n", novoRotulo2));
+private void acao111() throws SemanticError {
+    String rotuloDesempilhado = pilhaRotulos.pop();
+    codigoObjeto.add(String.format("%s:", rotuloDesempilhado));
+}
 
-        pilhaRotulos.push(novoRotulo2);
-    }
+private void acao112() throws SemanticError {
+    String novoRotulo = novoRotulo();
+    codigoObjeto.add(String.format("brfalse %s", novoRotulo));
+    pilhaRotulos.push(novoRotulo);
+}
 
-    private void acao110() throws SemanticError {
-        String rotuloDesempilhado2 = pilhaRotulos.pop();
-        String rotuloDesempilhado1 = pilhaRotulos.pop();
+private void acao113() {
+    String novoRotulo = novoRotulo();
+    codigoObjeto.add(String.format("%s:", novoRotulo));
+    pilhaRotulos.push(novoRotulo);
+}
 
-        codigoObjeto.add(String.format("br %s", rotuloDesempilhado1));
-        pilhaRotulos.push(rotuloDesempilhado1);
-        codigoObjeto.add(String.format("%s:", rotuloDesempilhado2));
-    }
+private void acao114() {
+    String rotuloDesempilhado = pilhaRotulos.pop();
+    codigoObjeto.add(String.format("brtrue %s", rotuloDesempilhado));
+}
 
-    private void acao111() throws SemanticError {
-        String rotuloDesempilhado = pilhaRotulos.pop();
-        codigoObjeto.add(String.format("%s:", rotuloDesempilhado));
-    }
+private void acao115() throws SemanticError {
+    String rotuloDesempilhado = pilhaRotulos.pop();
+    codigoObjeto.add(String.format("brfalse %s", rotuloDesempilhado));
+}
 
-    private void acao112() throws SemanticError {
-        String novoRotulo = novoRotulo();
-        codigoObjeto.add(String.format("brfalse %s", novoRotulo));
-        pilhaRotulos.push(novoRotulo);
-    }
+private String novoRotulo() {
+    return "rotulo" + contadorRotulos++;
+}
 
-    private void acao113() {
-        String novoRotulo = novoRotulo();
-        codigoObjeto.add(novoRotulo + ":");
-        pilhaRotulos.push(novoRotulo);
-    }
-
-    private void acao114() {
-        String rotuloDesempilhado = pilhaRotulos.pop();
-        codigoObjeto.add("brfalse " + rotuloDesempilhado);
-    }
-
-    private void acao115(Token token) throws SemanticError {
-        String rotuloDesempilhado = pilhaRotulos.pop();
-        codigoObjeto.add(String.format("brfalse %s", rotuloDesempilhado));
-    }
-
-    private void acao116(Token token) throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
+    private void comparacaoTipos(String operador) throws SemanticError {
         String tipo1 = pilhaTipos.pop();
+        String tipo2 = pilhaTipos.pop();
 
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "&&");
-        if (tipoResultante == null) {
-            throw new SemanticError("Tipos incompatíveis para a operação '&&'", token.getPosition());
+        empilhaCombinacao(tipo1, tipo2, operador);
+    }
+
+    private void empilhaCombinacao(String tipo1, String tipo2, String operador)
+            throws SemanticError {
+        switch (operador) {
+            case "+":
+            case "-":
+            case "*":
+            case "/":
+                combinacaoAritmetica(tipo1, tipo2);
+                break;
+            case "&&":
+            case "||":
+                combinacaoOU(tipo1, tipo2);
+                break;
+            case "==":
+            case "!=":
+            case "<":
+            case ">":
+                combinacaoMaiorQue(tipo1, tipo2);
+                break;
+            default:
+                throw new SemanticError("operador inválido", token.getPosition());
+
         }
-        pilhaTipos.push(tipoResultante);
+    }
+
+    private void combinacaoOU(String firstValueType, String secondValueType) throws SemanticError {
+        if (!firstValueType.equals("bool") || !secondValueType.equals("bool")) {
+            throw new SemanticError("tipos incompativeis");
+        }
+        empilhaBooleano();
+    }
+
+    private void combinacaoMaiorQue(String tipo1, String tipo2) throws SemanticError {
+        if (validacaoOperacao(tipo1, tipo2)) {
+            throw new SemanticError("tipos incompativeis");
+        }
+        empilhaBooleano();
+    }
+
+    private boolean validacaoOperacao(String tipo1, String tipo2) {
+        return (tipo1 != tipo2)
+                || (!tipo1.equals("int64") && !tipo1.equals("float64") && !tipo1.equals("string"))
+                || (!tipo2.equals("int64") && !tipo2.equals("float64") && !tipo2.equals("string"));
+    }
+
+    private void empilhaBooleano() {
+        pilhaTipos.push("bool");
+    }
+
+    private void combinacaoAritmetica(String tipo1, String tipo2) throws SemanticError {
+        if (tipo1 == tipo2) {
+            pilhaTipos.push(tipo1);
+            return;
+        } else if (tipo1.equals("int64") && tipo2.equals("float64")
+                || tipo1.equals("float64") && tipo2.equals("int64")) {
+            pilhaTipos.push("float64");
+            return;
+        }
+
+        throw new SemanticError("Types not compatible", token.getPosition());
+    }
+
+    private void acao116() throws SemanticError {
+        comparacaoTipos("&&");
         codigoObjeto.add("and");
     }
 
-    private void acao117(Token token) throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
-
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "||");
-        if (tipoResultante == null) {
-            throw new SemanticError("Tipos incompatíveis para a operação '||'", token.getPosition());
-        }
-
-        pilhaTipos.push(tipoResultante);
+    private void acao117() throws SemanticError {
+        comparacaoTipos("||");
         codigoObjeto.add("or");
     }
 
     private void acao118() {
         pilhaTipos.push("bool");
-        codigoObjeto.add("ldc.i8 1\n");
+        codigoObjeto.add("ldc.i4 1\n");
     }
 
     private void acao119() throws SemanticError {
         pilhaTipos.push("bool");
-        codigoObjeto.add("ldc.i8 0\n");
+        codigoObjeto.add("ldc.i4 0\n");
     }
 
-    private void acao120(Token token) {
+    private void acao120() {
         codigoObjeto.add("ldc.i8 1\nxor\n");
     }
 
@@ -376,44 +435,18 @@ public class Semantico implements Constants {
     }
 
     private void acao123() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "+");
-
-        if (tipoResultante == null) {
-            throw new SemanticError("Tipos incompatíveis para a operação '+'");
-        }
-
+        comparacaoTipos("+");
         codigoObjeto.add("add");
-        pilhaTipos.push(tipoResultante);
     }
 
     private void acao124() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
-
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "-");
-        if (tipoResultante == null) {
-            throw new SemanticError("Tipos incompatíveis para a operação '-'");
-        }
-
+        comparacaoTipos("-");
         codigoObjeto.add("sub");
-        pilhaTipos.push(tipoResultante);
     }
 
     private void acao125() throws SemanticError {
-        String tipo2 = pilhaTipos.pop();
-        String tipo1 = pilhaTipos.pop();
-
-        String tipoResultante = verificarTipoResultado(tipo1, tipo2, "*");
-
-        if ("int64".equals(tipoResultante) || "float64".equals(tipoResultante)) {
-            codigoObjeto.add("mul");
-        } else {
-            throw new SemanticError("Operação inválida entre tipos: " + tipo1 + " e " + tipo2);
-        }
-
-        pilhaTipos.push(tipoResultante);
+        comparacaoTipos("*");
+        codigoObjeto.add("mul");
     }
 
     private void acao126(Token token) throws SemanticError {
@@ -466,58 +499,29 @@ public class Semantico implements Constants {
 
     private void acao128(Token token) {
         pilhaTipos.push("int64");
-        codigoObjeto.add("dc.i8 %s\\nconv.r8\\n" + token.getLexeme());
+        codigoObjeto.add("ldc.i8 " + token.getLexeme());
+        codigoObjeto.add("conv.r8");
     }
 
     private void acao129(Token token) {
         pilhaTipos.push("float64");
         String valor = token.getLexeme().replace(",", ".");
-        codigoObjeto.add("ldc.r8 %s\n" + valor);
+        codigoObjeto.add("ldc.r8 " + valor);
     }
 
-    private void acao130() {
-        pilhaTipos.push("string");
-        codigoObjeto.add("ldstr %s\n" + token.getLexeme());
-    }
-
-    private String novoRotulo() {
-        return "rotulo" + (contadorRotulos++);
-    }
-
-    private String verificarTipoResultado(String operando1, String operando2, String operacao) throws SemanticError {
-        // Operações aritméticas
-        if ("+".equals(operacao) || "-".equals(operacao) || "*".equals(operacao)) {
-            if ("int64".equals(operando1) && "int64".equals(operando2)) {
-                return "int64";
-            } else if (("int64".equals(operando1) && "float64".equals(operando2))
-                    || ("float64".equals(operando1) && "int64".equals(operando2))
-                    || ("float64".equals(operando1) && "float64".equals(operando2))) {
-                return "float64";
-            }
-        } else if ("/".equals(operacao)) {
-            // Divisão exige que os tipos sejam iguais
-            if ("int64".equals(operando1) && "int64".equals(operando2)) {
-                return "int64";
-            } else if ("float64".equals(operando1) && "float64".equals(operando2)) {
-                return "float64";
-            } else {
-                throw new SemanticError("Divisão inválida entre tipos: " + operando1 + " e " + operando2);
-            }
-        } // Operações relacionais
-        else if ("<".equals(operacao) || "<=".equals(operacao) || ">".equals(operacao) || ">=".equals(operacao)
-                || "==".equals(operacao) || "!=".equals(operacao)) {
-            if (("int64".equals(operando1) || "float64".equals(operando1))
-                    && ("int64".equals(operando2) || "float64".equals(operando2))) {
-                return "bool";
-            }
+    private void acao130(Token token) {
+        if (token != null) {
+            pilhaTipos.push("string");
+            codigoObjeto.add("ldstr " + token.getLexeme());
+        } else {
+            pilhaTipos.push("string");
+            codigoObjeto.add("ldstr \"erro\"");
         }
-        // Operações lógicas
-//    else if ("&".equals(operacao) || "|".equals(operacao)) {
-//        if ("bool".equals(operando1) && "bool".equals(operando2)) {
-//            return "bool";
-//        }
-//    } 
-        throw new SemanticError("Operação inválida ou tipos incompatíveis: " + operando1 + " e " + operando2 + " com operação " + operacao);
+    }
+
+    private void acao131() {
+        codigoObjeto.add("ldc.r8 -1.0");
+        codigoObjeto.add("mul");
     }
 
 }

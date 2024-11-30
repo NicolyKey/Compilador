@@ -1,7 +1,6 @@
 package Interface;
 
 public class Token {
-
     private int id;
     private String lexeme;
     private int position;

@@ -8,7 +8,6 @@ package Interface;
  *
  * @author nicol
  */
-
    public class Simbolo {
 
         private String id;

@@ -1,5 +1,4 @@
 package Interface;
-
 public interface ParserConstants
 {
     int START_SYMBOL = 36;

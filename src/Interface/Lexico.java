@@ -1,5 +1,6 @@
 package Interface;
 
+
 public class Lexico implements Constants {
 
     private int position;
