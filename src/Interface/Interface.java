@@ -96,24 +96,18 @@ private void salvarCodigoObjeto() {
     File arquivoIL = new File(arquivoAtual.getParent(), nomeArquivoIL);
 
     try (FileWriter writer = new FileWriter(arquivoIL)) {
-        // Obter o código objeto do Semantico
         List<String> codigoObjeto = semantico.getCodigoObjeto();
-
-        // Verificar se há conteúdo no código objeto
         if (codigoObjeto == null || codigoObjeto.isEmpty()) {
             mensagem.setText("Erro: Código objeto está vazio. Certifique-se de que o código foi gerado corretamente.");
             return;
         }
 
-        // Usar StringBuilder para concatenar as linhas do código objeto
         StringBuilder sb = new StringBuilder();
         for (String linha : codigoObjeto) {
             sb.append(linha).append("\n");
         }
 
-        // Escrever no arquivo
         writer.write(sb.toString());
-        mensagem.append("\nArquivo .il gerado com sucesso: " + arquivoIL.getAbsolutePath());
     } catch (IOException e) {
         mensagem.setText("Erro ao salvar o arquivo .il: " + e.getMessage());
     }
@@ -127,6 +121,7 @@ private void salvarCodigoObjeto() {
     semantico = new Semantico();  // Inicializar a variável semantico
     String text = editor.getText();
     lexico.setInput(text);
+    Token token;
 
     try {
         // Tradução dirigida pela sintaxe
@@ -137,6 +132,7 @@ private void salvarCodigoObjeto() {
         salvarArquivo(arquivoAtual);
         salvarCodigoObjeto();
     } catch (LexicalError e1) {
+        System.out.println("entrou no ,léxico");
         mensagem.setText("Erro na linha " + e1.getLinhaToken(editor.getText()) + ": " + e1.getToken(editor.getText()) + " " + e1.getMessage());
     } catch (SyntaticError e2) {
         String tokenClassName = sintatico.getTokenClassName();
@@ -144,9 +140,12 @@ private void salvarCodigoObjeto() {
         String mensagemErro = (tokenClassName.equals("string"))
                 ? "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado constante_string " + e2.getMessage()
                 : "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado " + lexeme + " " + e2.getMessage();
+        System.out.println("entrou no sintatico");
         mensagem.setText(mensagemErro);
     } catch (SemanticError e3) {
-        mensagem.setText("Erro semântico: " + e3.getMessage());
+        System.out.println("entrou no semantico");
+        mensagem.setText("Erro na linha "+e3.getLinhaToken(editor.getText())+ " : "+ e3.getMessage());
+        System.out.println(e3.getLinhaToken(editor.getText()));
     }
 }
 
