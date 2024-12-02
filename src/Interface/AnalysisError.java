@@ -3,6 +3,7 @@ package Interface;
 public class AnalysisError extends Exception {
 
     private int position;
+    private Token token;
 
     public AnalysisError(String msg, int position) {
         super(msg);
@@ -29,31 +30,57 @@ public class AnalysisError extends Exception {
     }
 
     public String getToken(String text) {
-        // Verifica se a posição está dentro dos limites do texto
         if (position >= 0 && position < text.length()) {
-            // Define os delimitadores de tokens, como espaços em branco, pontuações, etc.
             String delimiters = "\t\n\r,;()[]{}+-*/=<>!&|";
             int startPos = position;
 
-            // Move a posição para trás até encontrar um delimitador ou o início do texto
+            if (position > 0 && position < text.length() - 1) {
+                char currentChar = text.charAt(position);
+                char nextChar = text.charAt(position + 1);
+
+                if ((currentChar == '&' && nextChar == '&')
+                        || (currentChar == '|' && nextChar == '|')) {
+                    return text.substring(position, position + 2);
+                }
+            }
+
             while (startPos > 0 && delimiters.indexOf(text.charAt(startPos - 1)) == -1) {
                 startPos--;
             }
 
-            // Move a posição para frente até encontrar um delimitador ou o fim do texto
             int endPos = position;
             while (endPos < text.length() && delimiters.indexOf(text.charAt(endPos)) == -1) {
                 endPos++;
             }
 
-            // Retorna o token entre startPos e endPos
             return text.substring(startPos, endPos);
         } else {
-            return ""; // Retorna uma string vazia se a posição estiver fora dos limites
+            return "";
         }
     }
 
-    public String toString() {
-        return super.toString() + ", @ " + position;
+    public String getTokenEspecial(String text) {
+        // Verifica se a posição está dentro dos limites válidos
+        if (position >= 0 && position < text.length()) {
+            int start = position;
+
+            // Move o índice para trás até encontrar um espaço ou o início do texto
+            while (start > 0 && !Character.isWhitespace(text.charAt(start - 1))) {
+                start--;
+            }
+
+            // Move o índice para frente até encontrar um espaço ou o fim do texto
+            int end = position;
+            while (end < text.length() && !Character.isWhitespace(text.charAt(end))) {
+                end++;
+            }
+
+            // Retorna o token entre as posições `start` e `end`
+            return text.substring(start, end);
+        } else {
+            // Retorna uma string vazia se a posição estiver fora dos limites
+            return "";
+        }
     }
+
 }

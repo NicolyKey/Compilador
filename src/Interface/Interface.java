@@ -84,71 +84,81 @@ public class Interface extends JFrame {
         }
     }
 
-private void salvarCodigoObjeto() {
-    if (arquivoAtual == null) {
-        mensagem.setText("Salve o arquivo antes de compilar para gerar o .il");
-        return;
-    }
-
-    // Obter o nome e caminho do arquivo .il
-    String nomeArquivo = arquivoAtual.getName();
-    String nomeArquivoIL = nomeArquivo.substring(0, nomeArquivo.lastIndexOf('.')) + ".il";
-    File arquivoIL = new File(arquivoAtual.getParent(), nomeArquivoIL);
-
-    try (FileWriter writer = new FileWriter(arquivoIL)) {
-        List<String> codigoObjeto = semantico.getCodigoObjeto();
-        if (codigoObjeto == null || codigoObjeto.isEmpty()) {
-            mensagem.setText("Erro: Código objeto está vazio. Certifique-se de que o código foi gerado corretamente.");
+    private void salvarCodigoObjeto() {
+        if (arquivoAtual == null) {
+            mensagem.setText("Salve o arquivo antes de compilar para gerar o .il");
             return;
         }
 
-        StringBuilder sb = new StringBuilder();
-        for (String linha : codigoObjeto) {
-            sb.append(linha).append("\n");
+        // Obter o nome e caminho do arquivo .il
+        String nomeArquivo = arquivoAtual.getName();
+        String nomeArquivoIL = nomeArquivo.substring(0, nomeArquivo.lastIndexOf('.')) + ".il";
+        File arquivoIL = new File(arquivoAtual.getParent(), nomeArquivoIL);
+
+        try (FileWriter writer = new FileWriter(arquivoIL)) {
+            List<String> codigoObjeto = semantico.getCodigoObjeto();
+            if (codigoObjeto == null || codigoObjeto.isEmpty()) {
+                mensagem.setText("Erro: Código objeto está vazio. Certifique-se de que o código foi gerado corretamente.");
+                return;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            for (String linha : codigoObjeto) {
+                sb.append(linha).append("\n");
+            }
+
+            writer.write(sb.toString());
+        } catch (IOException e) {
+            mensagem.setText("Erro ao salvar o arquivo .il: " + e.getMessage());
         }
-
-        writer.write(sb.toString());
-    } catch (IOException e) {
-        mensagem.setText("Erro ao salvar o arquivo .il: " + e.getMessage());
     }
-}
-
-
 
     private void Compilar() {
-    Lexico lexico = new Lexico();
-    Sintatico sintatico = new Sintatico();
-    semantico = new Semantico();  // Inicializar a variável semantico
-    String text = editor.getText();
-    lexico.setInput(text);
-    Token token;
+        Lexico lexico = new Lexico();
+        Sintatico sintatico = new Sintatico();
+        semantico = new Semantico();  // Inicializar a variável semantico
+        String text = editor.getText();
+        lexico.setInput(text);
+        Token token;
 
-    try {
-        // Tradução dirigida pela sintaxe
-        sintatico.parse(lexico, semantico);
-        mensagem.setText("Programa compilado com sucesso");
+        try {
+            sintatico.parse(lexico, semantico);
+            mensagem.setText("Programa compilado com sucesso");
 
-        // Salvar o código fonte original e o código objeto
-        salvarArquivo(arquivoAtual);
-        salvarCodigoObjeto();
-    } catch (LexicalError e1) {
-        System.out.println("entrou no ,léxico");
-        mensagem.setText("Erro na linha " + e1.getLinhaToken(editor.getText()) + ": " + e1.getToken(editor.getText()) + " " + e1.getMessage());
-    } catch (SyntaticError e2) {
-        String tokenClassName = sintatico.getTokenClassName();
-        String lexeme = sintatico.getToken();
-        String mensagemErro = (tokenClassName.equals("string"))
-                ? "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado constante_string " + e2.getMessage()
-                : "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado " + lexeme + " " + e2.getMessage();
-        System.out.println("entrou no sintatico");
-        mensagem.setText(mensagemErro);
-    } catch (SemanticError e3) {
-        System.out.println("entrou no semantico");
-        mensagem.setText("Erro na linha "+e3.getLinhaToken(editor.getText())+ " : "+ e3.getMessage());
-        System.out.println(e3.getLinhaToken(editor.getText()));
+   
+            salvarArquivo(arquivoAtual);
+            salvarCodigoObjeto();
+        } catch (LexicalError e1) {
+            System.out.println("entrou no léxico");
+             if (e1.getMessage().equals("constante_string inválida")) {
+                mensagem.setText(
+                        "Erro na linha " + e1.getLinhaToken(editor.getText()) + " - " + e1.getMessage());
+                
+            }else if(e1.getMessage().equals("simbolo inválido")){
+                
+               mensagem.setText("Erro na linha " + e1.getLinhaToken(editor.getText()) + " - " + e1.getTokenEspecial(editor.getText()) + " "
+                    + e1.getMessage());
+            }else{
+             mensagem.setText("Erro na linha " + e1.getLinhaToken(editor.getText()) + " - " + e1.getToken(editor.getText()) + " "
+                    + e1.getMessage());
+            }
+            
+           
+            mensagem.setPreferredSize(new Dimension(500, mensagem.getPreferredSize().height));
+        } catch (SyntaticError e2) {
+            String tokenClassName = sintatico.getTokenClassName();
+            String lexeme = sintatico.getToken();
+            String mensagemErro = (tokenClassName.equals("string"))
+                    ? "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado constante_string " + e2.getMessage()
+                    : "Erro na linha " + e2.getLinhaToken(editor.getText()) + " - encontrado " + lexeme + " " + e2.getMessage();
+            System.out.println("entrou no sintatico");
+            mensagem.setText(mensagemErro);
+        } catch (SemanticError e3) {
+            System.out.println("entrou no semantico");
+            mensagem.setText("Erro na linha " + e3.getLinhaToken(editor.getText()) + " : " + e3.getMessage());
+            System.out.println(e3.getLinhaToken(editor.getText()));
+        }
     }
-}
-
 
     public Interface() {
         // area que define que meu editor de texto vai possuir uma borda com numeros
@@ -622,7 +632,6 @@ private void salvarCodigoObjeto() {
      * WARNING: Do NOT modify this code. The content of this method is always
      * regenerated by the Form Editor.
      */
-
     // <editor-fold defaultstate="collapsed" desc="Generated Code">                          
     private void initComponents() {
 
@@ -631,12 +640,12 @@ private void salvarCodigoObjeto() {
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 400, Short.MAX_VALUE)
+                layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGap(0, 400, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 300, Short.MAX_VALUE)
+                layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGap(0, 300, Short.MAX_VALUE)
         );
 
         pack();
