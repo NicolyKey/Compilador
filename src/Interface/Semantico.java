@@ -110,7 +110,7 @@ public class Semantico implements Constants {
     private void acao102(Token token) throws SemanticError {
         for (String id : listaId) {
             if (tabelaSimbolos.containsKey(id)) {
-                throw new SemanticError(token.getLexeme() + " já declarado");
+                throw new SemanticError(token.getLexeme() + " já declarado" , token.getPosition());
             }
 
             String tipoIL = switch (id.substring(0, 2)) {
@@ -123,10 +123,14 @@ public class Semantico implements Constants {
                 case "b_" ->
                     "bool";
                 default ->
-                    throw new SemanticError("Identificador '" + id + "' deve começar com i_, f_, s_ ou b_");
+                    throw new SemanticError("Identificador '" + id + "' deve começar com i_, f_, s_ ou b_" , token.getPosition());
             };
             tabelaSimbolos.put(id, new Simbolo(id, tipoIL, false, token.getPosition()));
             codigoObjeto.add(".locals (" + tipoIL + " " + id + ")");
+
+            if (!tabelaSimbolos.containsKey(id)) {
+                throw new SemanticError(id + " não declarado", token.getPosition());
+            }
         }
         listaId.clear();
     }
@@ -144,17 +148,15 @@ public class Semantico implements Constants {
 
         for (String id : listaId) {
             if (!tabelaSimbolos.containsKey(id)) {
-                throw new SemanticError(id + " não declarado");
+                throw new SemanticError(id + " não declarado", token.getPosition());
             }
-
             String tipoIdentificador = tabelaSimbolos.get(id).getTipo();
-
-            if (!tipoIdentificador.equals(tipoExpressao)) {
-                throw new SemanticError(
-                        "Tipo incompatível: não é possível atribuir " + tipoExpressao + " a " + tipoIdentificador
-                );
-            }
-
+            
+//            if (!tipoIdentificador.equals(tipoExpressao)) {
+//                throw new SemanticError(
+//                        "Tipo incompatível: não é possível atribuir " + tipoExpressao + " a " + tipoIdentificador , token.getPosition()
+//                );
+//            }
             codigoObjeto.add("stloc " + id);
         }
 
@@ -169,8 +171,12 @@ public class Semantico implements Constants {
     private void acao105(Token token) throws SemanticError {
         String lexeme = token.getLexeme();
 
-        if (!tabelaSimbolos.containsKey(lexeme)) {
-            throw new SemanticError(lexeme + " não declarado");
+         for (String id : listaId) {
+            if (!tabelaSimbolos.containsKey(id)) {
+                throw new SemanticError(id + " não declarado", token.getPosition());
+            }
+            String tipoIdentificador = tabelaSimbolos.get(id).getTipo();
+            codigoObjeto.add("stloc " + id);
         }
 
         codigoObjeto.add("call string [mscorlib]System.Console::ReadLine()");
@@ -189,7 +195,7 @@ public class Semantico implements Constants {
                 yield "call bool [mscorlib]System.Boolean::Parse(string)";
             }
             default ->
-                throw new SemanticError("Tipo não suportado para leitura: " + lexeme);
+                throw new SemanticError("Tipo não suportado para leitura: " + lexeme , token.getPosition());
         };
         if (!tipoIL.isEmpty()) {
             codigoObjeto.add(tipoIL);
@@ -217,7 +223,7 @@ public class Semantico implements Constants {
         if (id.startsWith("b_")) {
             return "bool";
         }
-        throw new SemanticError("Identificador com prefixo inválido: " + id);
+        throw new SemanticError("Identificador com prefixo inválido: " + id , token.getPosition());
     }
 
     private void acao107(Token token) throws SemanticError {
@@ -242,7 +248,7 @@ public class Semantico implements Constants {
                     codigoObjeto.add("call void [mscorlib]System.Console::WriteLine(bool)");
                     break;
                 default:
-                    throw new SemanticError("Tipo inválido para operação de escrita: " + tipo);
+                    throw new SemanticError("Tipo inválido para operação de escrita: " + tipo  , token.getPosition());
             }
         }
 
@@ -277,7 +283,7 @@ public class Semantico implements Constants {
                 codigoObjeto.add("call void [mscorlib]System.Console::Write(bool)");
                 break;
             default:
-                throw new SemanticError("Tipo inválido para operação de escrita: " + tipo);
+                throw new SemanticError("Tipo inválido para operação de escrita: " + tipo , token.getPosition());
         }
     }
 
@@ -355,21 +361,21 @@ public class Semantico implements Constants {
                 combinacaoMaiorQue(tipo1, tipo2);
                 break;
             default:
-                throw new SemanticError("operador inválido");
+                throw new SemanticError("operador inválido" , token.getPosition());
 
         }
     }
 
     private void combinacaoOU(String firstValueType, String secondValueType) throws SemanticError {
         if (!firstValueType.equals("bool") || !secondValueType.equals("bool")) {
-            throw new SemanticError("Tipos incompatíveis");
+            throw new SemanticError("Tipos incompatíveis" , token.getPosition());
         }
         empilhaBooleano();
     }
 
     private void combinacaoMaiorQue(String tipo1, String tipo2) throws SemanticError {
         if (validacaoOperacao(tipo1, tipo2)) {
-            throw new SemanticError("Tipos incompatíveis");
+            throw new SemanticError("Tipos incompatíveis" , token.getPosition());
         }
         empilhaBooleano();
     }
@@ -394,7 +400,7 @@ public class Semantico implements Constants {
             return;
         }
 
-        throw new SemanticError("Tipos incompatíveis");
+        throw new SemanticError("Tipos incompatíveis" , token.getPosition());
     }
 
     private void acao116() throws SemanticError {
@@ -443,7 +449,7 @@ public class Semantico implements Constants {
                 codigoObjeto.add("cgt\n");
                 break;
             default:
-                throw new SemanticError("Operador relacional desconhecido: " + operadorRelacionalAtual);
+                throw new SemanticError("Operador relacional desconhecido: " + operadorRelacionalAtual , token.getPosition());
         }
     }
 
@@ -471,7 +477,7 @@ public class Semantico implements Constants {
         }
 
         if (!tipo1.equals("int64") && !tipo1.equals("float64")) {
-            throw new SemanticError("Operação de divisão suportada apenas para tipos numéricos (int64 ou float64).");
+            throw new SemanticError("Operação de divisão suportada apenas para tipos numéricos (int64 ou float64)." , token.getPosition());
         }
 
         codigoObjeto.add("div");
@@ -498,7 +504,7 @@ public class Semantico implements Constants {
         String lexeme = token.getLexeme();
 
         if (!tabelaSimbolos.containsKey(lexeme)) {
-            throw new SemanticError(lexeme + " não declarado");
+            throw new SemanticError(lexeme + " não declarado" , token.getPosition());
         }
         String varType = pegarTipoId(lexeme);
         pilhaTipos.push(varType);
@@ -526,7 +532,7 @@ public class Semantico implements Constants {
         if (token != null) {
             pilhaTipos.push("string");
             codigoObjeto.add("ldstr " + token.getLexeme());
-        }else {
+        } else {
             pilhaTipos.push("string");
             codigoObjeto.add("ldstr \"erro\"");
         }

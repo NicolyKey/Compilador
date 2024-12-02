@@ -28,33 +28,6 @@ public class Token {
         return id + " ( " + lexeme + " ) @ " + position;
     }
 
-    
-     // Método para validar o lexeme
-//    private void validateLexeme() throws LexicalError {;
-//
-//        if (getTokenClassName().equals("pr")) {
-//            switch (lexeme) {
-//                case "String":
-//                case "main":
-//                case "read":
-//                case "true":
-//                case "false":
-//                case "end":
-//                case "write":
-//                case "writeln":
-//                case "if":
-//                case "elif":
-//                case "else":
-//                case "repeat":
-//                case "until":
-//                case "while":
-//                    // Lexeme válido, continua execução
-//                    break;
-//                default:
-//                    throw new LexicalError("palavra reservada invalida", "palavra reservada inv\u00e1lida", start);
-//            }
-//        }
-//    }
 
     // Mantém o método de nome de classe para retornar o tipo de token
     public String getTokenClassName() {

@@ -189,7 +189,7 @@ public interface ParserConstants
         "esperado expressão",//"<termo> inválido",
         "esperado expressão",//"<fator> inválido",
         "esperado expressão",//"<termo1> inválido",
-        "esperado identificador end if read write writeln repeat ",//"<lista_instrucoes_opc> inválido",
+        "esperado identificador end if read write writeln repeat",//"<lista_instrucoes_opc> inválido",
         "esperado , )",//"<id_opc> inválido",
         "esperado , ; =",//"<lista_id_opc> inválido",
         "esperado , )",//"<lista_expressoes_opc> inválido",
