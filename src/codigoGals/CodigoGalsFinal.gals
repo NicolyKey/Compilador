@@ -1,0 +1,192 @@
+#Options
+GenerateScanner = true
+GenerateParser = true
+Language = Java
+ScannerName = Lexico
+ParserName = Sintatico
+SemanticName = Semantico
+ScannerCaseSensitive = true
+ScannerTable = Compact
+Input = Stream
+Parser = LL
+#RegularDefinitions
+mai: [A-Z]
+min: [a-z]
+digito : [0-9]
+numero : [1-9]
+letra: {mai} | {min}
+prefixo: i_ | f_ | b_ | s_
+
+#Tokens
+
+// Ana Carolina Hausmann, Nicoly K. Lima Araujo;
+
+pr: {min} ({letra})*
+
+id:! {prefixo} ({mai}| {min} {mai}?) (({min}| {digito}) {mai}?)*
+
+cte_int: {numero}{digito}* | 0
+
+cte_real:  ({numero}{digito}*|0) "," ({digito}*{numero}|0)
+
+string: \" ([^\n\" %] | % x)* \"
+
+//palavras reservadas
+main = pr : "main"
+read = pr : "read"
+true = pr : "true"
+false = pr : "false"
+write = pr : "write"
+writeln = pr : "writeln"
+if = pr : "if"
+elif = pr : "elif"
+else = pr : "else"
+repeat = pr : "repeat"
+until = pr : "until"
+while = pr : "while"
+end = pr : "end"
+
+//simbolo especial : && || ! == != < > + - * / , ; = ( )
+"&&"
+"||"
+
+"!"
+"=="
+"!="
+"<"
+">"
+"+"
+"-"
+"*"
+"/"
+","
+";"
+"="
+"("
+")"
+
+
+:! ">@" \n [^@]* \n "@<"
+
+
+:[\s\t\n]
+#NonTerminals
+<classe>
+
+<cmd_atribuicao>
+<cmd_entrada>
+<cmd_saida>
+<cmd_selecao>
+<cmd_repeticao>
+
+
+<lista_instrucoes>
+<instrucao>
+<comando>
+<lista_id>
+<instrucao1> 
+
+
+<opcional>
+<lista_entrada>
+<lista_expressoes>
+
+<lista_cmd>
+<elif>
+<else>
+
+<expressao>
+<elemento>
+<expressao1>
+<relacional>
+<aritmetica>
+<aritmetica1>
+<relacional1>
+<operador_relacional>
+<termo>
+<fator>
+<termo1> 
+<lista_instrucoes_opc>
+<id_opc>
+
+<lista_id_opc>
+<lista_expressoes_opc>
+ <lista_cmd_opc>
+<repeat_opc>
+<whileOrUntil>
+
+
+
+
+#Grammar
+<classe> ::= #100 main <lista_instrucoes> end #101;
+
+<lista_instrucoes> ::= <instrucao> ";" <lista_instrucoes_opc>;
+
+<lista_instrucoes_opc> ::=  <lista_instrucoes>| î;
+
+<instrucao> ::= <lista_id> <instrucao1>  | <cmd_entrada> | <cmd_saida> | <cmd_selecao> | <cmd_repeticao>;
+<instrucao1> ::= #102 î | "=" <expressao> #103;
+
+
+<lista_id> ::= id #104 <lista_id_opc>;
+
+<lista_id_opc> ::= "," <lista_id> | î ;
+
+<comando> ::= <cmd_entrada> | <cmd_saida> |<cmd_selecao> | <cmd_repeticao> | <cmd_atribuicao>;
+
+<cmd_atribuicao> ::= <lista_id> "=" <expressao> #103; 
+
+<cmd_entrada> ::= read "("<lista_entrada>")" ;
+
+
+<lista_entrada> ::= <opcional> id #105 <id_opc>;
+
+<id_opc> ::= ","<lista_entrada> | î;
+
+<opcional> ::= string #106 "," | î;
+
+<cmd_saida> ::= write "(" <lista_expressoes> ")" | writeln "(" <lista_expressoes> ")" #107;
+
+<lista_expressoes> ::= <expressao> #108 <lista_expressoes_opc>;
+
+<lista_expressoes_opc> ::= "," <lista_expressoes> | î;
+
+<cmd_selecao>::=  if <expressao> #109 <lista_cmd> <elif> #110 <else> #111 end;
+
+<elif> ::= #110 elif <expressao> #112 <lista_cmd> <elif>|î;
+
+<else>::= else <lista_cmd>|î;
+                 
+<lista_cmd> ::= <comando> ";" <lista_cmd_opc> ;
+
+<lista_cmd_opc> ::= <lista_cmd>  | î ;
+
+
+<cmd_repeticao> ::= #113 repeat <repeat_opc>;
+
+<repeat_opc> ::= <lista_cmd><whileOrUntil>;
+
+<whileOrUntil> ::= while<expressao> #114 |until <expressao> #115;
+
+<expressao> ::= <elemento> <expressao1> ;
+
+<expressao1> ::= î | "&&" <elemento> #116 <expressao1> | "||" <elemento> #117 <expressao1> ;
+
+<elemento> ::= <relacional> | true #118 | false #119 | "!" <elemento> #120;
+
+<relacional> ::= <aritmetica> <relacional1> ;
+
+<relacional1> ::= î | <operador_relacional> #121 <aritmetica> #122 ;
+
+<operador_relacional>::= "==" | "!=" | "<" | ">" ;
+
+<aritmetica> ::= <termo> <aritmetica1> ;
+
+<aritmetica1> ::= î | "+" <termo> #123 <aritmetica1> | "-" <termo> #124 <aritmetica1> ;
+
+<termo> ::= <fator> <termo1> ;
+
+<termo1> ::= î | "*" <fator> #125 <termo1> | "/" <fator> #126 <termo1> ;
+
+<fator> ::= id #127 | cte_int #128 | cte_real #129| string #130 | "(" <expressao> ")" |"+" <fator> | "-" <fator> #131 ;
